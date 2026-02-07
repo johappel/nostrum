@@ -1,9 +1,6 @@
 import type { PageLoad } from './$types';
+import { mapThreadRouteData } from '$lib/routes/contracts';
 
 export const load: PageLoad = ({ params }) => {
-	return {
-		forumId: params.id,
-		threadId: params.thread_id
-	};
+	return mapThreadRouteData(params);
 };
-

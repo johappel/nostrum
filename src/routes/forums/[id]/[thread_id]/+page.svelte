@@ -1,19 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { ensureDemoData } from '$lib/data/db';
-	import {
-		createPermissionsStore,
-		createThreadDetailStore
-	} from '$lib/stores';
+	import { createThreadRouteStores } from '$lib/routes/contracts';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
-	let threadStore = $state(createThreadDetailStore('', ''));
-	let permissionsStore = $state(createPermissionsStore('npub_demo_user_1', ''));
+	let threadStore = $state(createThreadRouteStores('', '').threadStore);
+	let permissionsStore = $state(createThreadRouteStores('', '').permissionsStore);
 
 	$effect(() => {
-		threadStore = createThreadDetailStore(data.forumId, data.threadId);
-		permissionsStore = createPermissionsStore('npub_demo_user_1', data.forumId);
+		const stores = createThreadRouteStores(data.forumId, data.threadId);
+		threadStore = stores.threadStore;
+		permissionsStore = stores.permissionsStore;
 	});
 
 	onMount(async () => {

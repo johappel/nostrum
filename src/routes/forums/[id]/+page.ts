@@ -1,8 +1,6 @@
 import type { PageLoad } from './$types';
+import { mapForumRouteData } from '$lib/routes/contracts';
 
 export const load: PageLoad = ({ params }) => {
-	return {
-		forumId: params.id
-	};
+	return mapForumRouteData(params);
 };
-

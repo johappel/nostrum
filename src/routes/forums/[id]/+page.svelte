@@ -1,18 +1,19 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { ensureDemoData } from '$lib/data/db';
-	import { createCommunityStore, createSyncStateStore, createThreadListStore } from '$lib/stores';
+	import { createForumRouteStores } from '$lib/routes/contracts';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
-	let communityStore = $state(createCommunityStore(''));
-	let threadListStore = $state(createThreadListStore('', 'general'));
-	let syncStateStore = $state(createSyncStateStore(''));
+	let communityStore = $state(createForumRouteStores('').communityStore);
+	let threadListStore = $state(createForumRouteStores('').threadListStore);
+	let syncStateStore = $state(createForumRouteStores('').syncStateStore);
 
 	$effect(() => {
-		communityStore = createCommunityStore(data.forumId);
-		threadListStore = createThreadListStore(data.forumId, 'general');
-		syncStateStore = createSyncStateStore(data.forumId);
+		const stores = createForumRouteStores(data.forumId);
+		communityStore = stores.communityStore;
+		threadListStore = stores.threadListStore;
+		syncStateStore = stores.syncStateStore;
 	});
 
 	onMount(async () => {
