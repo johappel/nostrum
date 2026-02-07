@@ -33,5 +33,12 @@ Set up a stable unit-test foundation for SvelteKit + Dexie store logic.
 3. Baseline tests are deterministic.
 
 ## Status
-Planned
+Done
 
+## Result
+1. `vitest` configured and runnable via `pnpm test`.
+2. `fake-indexeddb` setup added for deterministic Dexie unit tests.
+3. Baseline DB tests added:
+   - DB init smoke test
+   - seed baseline row counts
+   - seed idempotency

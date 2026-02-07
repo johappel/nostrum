@@ -1,5 +1,4 @@
 import Dexie, { type Table } from 'dexie';
-import { browser } from '$app/environment';
 
 export interface NostrEventRow {
 	id: string;
@@ -89,10 +88,21 @@ class NostrumDb extends Dexie {
 
 let dbInstance: NostrumDb | null = null;
 
+function hasIndexedDbRuntime(): boolean {
+	return typeof indexedDB !== 'undefined' && typeof IDBKeyRange !== 'undefined';
+}
+
 export function getDb(): NostrumDb | null {
-	if (!browser) return null;
+	if (!hasIndexedDbRuntime()) return null;
 	if (!dbInstance) dbInstance = new NostrumDb();
 	return dbInstance;
+}
+
+export async function resetDbForTests(): Promise<void> {
+	if (!dbInstance) return;
+	dbInstance.close();
+	await dbInstance.delete();
+	dbInstance = null;
 }
 
 export async function ensureDemoData(community: string): Promise<void> {
@@ -107,98 +117,98 @@ export async function ensureDemoData(community: string): Promise<void> {
 	const replyId = `${community}-reply-1`;
 
 	await db.transaction('rw', db.tables, async () => {
-			await db.sections.bulkAdd([
-				{
-					community,
-					section: 'General',
-					kinds: [1111, 7, 1985],
-					listRef: `30000:${community}:General`
-				},
-				{
-					community,
-					section: 'Forum',
-					kinds: [11],
-					listRef: `30000:${community}:General`
-				}
-			]);
-
-			await db.lists.add({
+		await db.sections.bulkAdd([
+			{
 				community,
-				dTag: 'General',
-				members: ['npub_demo_user_1', 'npub_demo_mod_1'],
-				updatedAt: now
-			});
-
-			await db.lists.add({
+				section: 'General',
+				kinds: [1111, 7, 1985],
+				listRef: `30000:${community}:General`
+			},
+			{
 				community,
-				dTag: 'Moderation',
-				members: ['npub_demo_mod_1'],
-				updatedAt: now
-			});
+				section: 'Forum',
+				kinds: [11],
+				listRef: `30000:${community}:General`
+			}
+		]);
 
-			await db.events.bulkAdd([
-				{
-					id: rootId,
-					kind: 11,
-					pubkey: 'npub_demo_user_1',
-					createdAt: now - 10_000,
-					community,
-					forumSlug: 'general',
-					rootId,
-					content: 'Willkommen im Demo-Forum'
-				},
-				{
-					id: replyId,
-					kind: 11,
-					pubkey: 'npub_demo_user_1',
-					createdAt: now - 5_000,
-					community,
-					forumSlug: 'general',
-					rootId,
-					content: 'Erste Antwort im Thread'
-				}
-			]);
+		await db.lists.add({
+			community,
+			dTag: 'General',
+			members: ['npub_demo_user_1', 'npub_demo_mod_1'],
+			updatedAt: now
+		});
 
-			await db.threadHeads.add({
-				rootId,
+		await db.lists.add({
+			community,
+			dTag: 'Moderation',
+			members: ['npub_demo_mod_1'],
+			updatedAt: now
+		});
+
+		await db.events.bulkAdd([
+			{
+				id: rootId,
+				kind: 11,
+				pubkey: 'npub_demo_user_1',
+				createdAt: now - 10_000,
 				community,
 				forumSlug: 'general',
-				title: 'Willkommen',
+				rootId,
+				content: 'Willkommen im Demo-Forum'
+			},
+			{
+				id: replyId,
+				kind: 11,
+				pubkey: 'npub_demo_user_1',
+				createdAt: now - 5_000,
+				community,
+				forumSlug: 'general',
+				rootId,
+				content: 'Erste Antwort im Thread'
+			}
+		]);
+
+		await db.threadHeads.add({
+			rootId,
+			community,
+			forumSlug: 'general',
+			title: 'Willkommen',
+			author: 'npub_demo_user_1',
+			lastActivityAt: now - 5_000,
+			replyCount: 1
+		});
+
+		await db.reactions.bulkAdd([
+			{
+				targetId: rootId,
 				author: 'npub_demo_user_1',
-				lastActivityAt: now - 5_000,
-				replyCount: 1
-			});
+				value: ':heart:',
+				createdAt: now - 4_000
+			},
+			{
+				targetId: rootId,
+				author: 'npub_demo_mod_1',
+				value: '+',
+				createdAt: now - 3_000
+			}
+		]);
 
-			await db.reactions.bulkAdd([
-				{
-					targetId: rootId,
-					author: 'npub_demo_user_1',
-					value: ':heart:',
-					createdAt: now - 4_000
-				},
-				{
-					targetId: rootId,
-					author: 'npub_demo_mod_1',
-					value: '+',
-					createdAt: now - 3_000
-				}
-			]);
-
-			await db.syncCursor.bulkAdd([
-				{
-					relay: 'wss://relay.example',
-					community,
-					stream: 'forum',
-					cursor: Math.floor(now / 1000),
-					updatedAt: now
-				},
-				{
-					relay: 'wss://relay.example',
-					community,
-					stream: 'general',
-					cursor: Math.floor(now / 1000),
-					updatedAt: now
-				}
-			]);
+		await db.syncCursor.bulkAdd([
+			{
+				relay: 'wss://relay.example',
+				community,
+				stream: 'forum',
+				cursor: Math.floor(now / 1000),
+				updatedAt: now
+			},
+			{
+				relay: 'wss://relay.example',
+				community,
+				stream: 'general',
+				cursor: Math.floor(now / 1000),
+				updatedAt: now
+			}
+		]);
 	});
 }
