@@ -17,6 +17,7 @@ export async function tableCounts() {
 	return {
 		sections: await db.sections.count(),
 		lists: await db.lists.count(),
+		communityProfiles: await db.communityProfiles.count(),
 		events: await db.events.count(),
 		threadHeads: await db.threadHeads.count(),
 		reactions: await db.reactions.count(),

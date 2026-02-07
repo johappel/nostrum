@@ -4,6 +4,7 @@ import { liveQueryReadable } from '$lib/stores/liveQueryReadable';
 
 export interface CommunityView {
 	community: string;
+	title: string;
 	sections: Array<{ section: string; kinds: number[]; listRef: string }>;
 	generalMemberCount: number;
 	moderatorCount: number;
@@ -25,13 +26,15 @@ export function createCommunityStore(community: string): Readable<CommunityView 
 		[]
 	);
 	const listsStore = liveQueryReadable(() => db.lists.where('community').equals(community).toArray(), []);
+	const profileStore = liveQueryReadable(() => db.communityProfiles.get(community), null);
 
-	return derived([sectionsStore, listsStore], ([sections, lists]) => {
+	return derived([sectionsStore, listsStore, profileStore], ([sections, lists, profile]) => {
 		const generalList = lists.find((list) => list.dTag === 'General');
 		const moderationList = lists.find((list) => list.dTag === 'Moderation');
 
 		return {
 			community,
+			title: profile?.title ?? community,
 			sections: sections.map((section) => ({
 				section: section.section,
 				kinds: section.kinds,

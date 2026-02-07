@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
 	buildForumHubItems,
 	normalizeCommunityId,
-	validateCommunityId
+	validateCommunityId,
+	validateCommunityTitle
 } from '../src/lib/routes/forumsHub';
-import type { ListRow, SectionRow, ThreadHeadRow } from '../src/lib/data/db';
+import type { CommunityProfileRow, ListRow, SectionRow, ThreadHeadRow } from '../src/lib/data/db';
 
 describe('forums hub view model', () => {
 	it('normalizes and validates community IDs deterministically', () => {
@@ -24,6 +25,15 @@ describe('forums hub view model', () => {
 			ok: true,
 			community: 'neue-community'
 		});
+
+		expect(validateCommunityTitle('ab')).toEqual({
+			ok: false,
+			message: 'Forum-Titel muss mindestens 3 Zeichen haben.'
+		});
+		expect(validateCommunityTitle('Nostr Dev Forum')).toEqual({
+			ok: true,
+			title: 'Nostr Dev Forum'
+		});
 	});
 
 	it('builds sorted forum hub items with member and activity counts', () => {
@@ -35,6 +45,10 @@ describe('forums hub view model', () => {
 			{ community: 'alpha', dTag: 'General', members: ['a1', 'a2'], updatedAt: 10 },
 			{ community: 'alpha', dTag: 'Moderation', members: ['a2'], updatedAt: 10 },
 			{ community: 'demo', dTag: 'General', members: ['d1'], updatedAt: 10 }
+		];
+		const profiles: CommunityProfileRow[] = [
+			{ community: 'alpha', title: 'Alpha Forum', updatedAt: 20 },
+			{ community: 'demo', title: 'Demo Community', updatedAt: 20 }
 		];
 		const heads: ThreadHeadRow[] = [
 			{
@@ -69,12 +83,14 @@ describe('forums hub view model', () => {
 		const items = buildForumHubItems({
 			sections,
 			lists,
+			profiles,
 			threadHeads: heads
 		});
 
 		expect(items.map((item) => item.community)).toEqual(['demo', 'alpha']);
 		expect(items[0]).toMatchObject({
 			community: 'demo',
+			title: 'Demo Community',
 			threadCount: 2,
 			generalMemberCount: 1,
 			moderatorCount: 0,
@@ -82,6 +98,7 @@ describe('forums hub view model', () => {
 		});
 		expect(items[1]).toMatchObject({
 			community: 'alpha',
+			title: 'Alpha Forum',
 			threadCount: 1,
 			generalMemberCount: 2,
 			moderatorCount: 1,

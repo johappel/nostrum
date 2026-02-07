@@ -27,6 +27,13 @@ export interface ListRow {
 	updatedAt: number;
 }
 
+export interface CommunityProfileRow {
+	community: string;
+	title: string;
+	description?: string;
+	updatedAt: number;
+}
+
 export interface ThreadHeadRow {
 	rootId: string;
 	community: string;
@@ -90,6 +97,7 @@ class NostrumDb extends Dexie {
 	events!: Table<NostrEventRow, string>;
 	sections!: Table<SectionRow, number>;
 	lists!: Table<ListRow, number>;
+	communityProfiles!: Table<CommunityProfileRow, string>;
 	threadHeads!: Table<ThreadHeadRow, string>;
 	reactions!: Table<ReactionRow, string>;
 	labels!: Table<LabelRow, string>;
@@ -127,6 +135,18 @@ class NostrumDb extends Dexie {
 			pendingWrites:
 				'++id, eventId, community, kind, action, status, targetId, author, updatedAt, [community+status+updatedAt], [community+targetId], [community+eventId]'
 		});
+		this.version(4).stores({
+			events: 'id, kind, pubkey, createdAt, community, forumSlug, rootId, [community+kind+createdAt], [community+rootId+createdAt]',
+			sections: '++id, community, section, [community+section]',
+			lists: '++id, community, dTag, [community+dTag], updatedAt',
+			communityProfiles: 'community, title, updatedAt',
+			threadHeads: 'rootId, community, forumSlug, lastActivityAt, [community+forumSlug+lastActivityAt]',
+			reactions: 'id, eventId, community, targetId, author, value, createdAt, [targetId+author], [community+targetId]',
+			labels: 'id, eventId, community, targetId, label, reason, author, createdAt, [targetId+label+createdAt], [community+targetId]',
+			syncCursor: '++id, relay, community, stream, cursor, updatedAt, [relay+community+stream]',
+			pendingWrites:
+				'++id, eventId, community, kind, action, status, targetId, author, updatedAt, [community+status+updatedAt], [community+targetId], [community+eventId]'
+		});
 	}
 }
 
@@ -149,18 +169,60 @@ export async function resetDbForTests(): Promise<void> {
 	dbInstance = null;
 }
 
+function toDefaultCommunityTitle(community: string): string {
+	return community
+		.split('-')
+		.filter((part) => part.length > 0)
+		.map((part) => part[0].toUpperCase() + part.slice(1))
+		.join(' ');
+}
+
+export async function upsertCommunityProfile(input: {
+	community: string;
+	title: string;
+	description?: string;
+}): Promise<void> {
+	const db = getDb();
+	if (!db) return;
+	const title = input.title.trim();
+	if (title.length === 0) return;
+
+	await db.communityProfiles.put({
+		community: input.community,
+		title,
+		description: input.description?.trim() || undefined,
+		updatedAt: Date.now()
+	});
+}
+
 export async function ensureDemoData(community: string): Promise<void> {
 	const db = getDb();
 	if (!db) return;
 
 	const existing = await db.threadHeads.where('community').equals(community).count();
-	if (existing > 0) return;
+	const defaultTitle = community === 'demo' ? 'Demo Community' : toDefaultCommunityTitle(community);
+	if (existing > 0) {
+		const profile = await db.communityProfiles.get(community);
+		if (!profile) {
+			await upsertCommunityProfile({
+				community,
+				title: defaultTitle
+			});
+		}
+		return;
+	}
 
 	const now = Date.now();
 	const rootId = `${community}-thread-welcome`;
 	const replyId = `${community}-reply-1`;
 
 	await db.transaction('rw', db.tables, async () => {
+		await db.communityProfiles.put({
+			community,
+			title: defaultTitle,
+			updatedAt: now
+		});
+
 		await db.sections.bulkAdd([
 			{
 				community,

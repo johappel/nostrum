@@ -7,7 +7,8 @@ Enable creating a new forum directly from `/forums` and show forum entries from 
 1. Replace static `/forums` page with dynamic forum hub list from Dexie-backed store.
 2. Add role-neutral "Forum erstellen" CTA at top and forum composer below existing forum list.
 3. Validate and normalize forum IDs deterministically before creation.
-4. Create local forum scaffold via existing local seed path to make new forum immediately usable.
+4. Support explicit forum title input for UI display in list and topbar/navbar.
+5. Create local forum scaffold via existing local seed path to make new forum immediately usable.
 
 ## Out of scope
 1. Dedicated Nostr publish flow for new community identity (`kind:10222`).
@@ -30,6 +31,8 @@ Enable creating a new forum directly from `/forums` and show forum entries from 
    - composer section below list
 4. Store export update:
    - `src/lib/stores/index.ts`
+5. Community profile persistence for display title:
+   - `src/lib/data/db.ts` (`communityProfiles`)
 
 ## Test plan (unit tests)
 1. Community ID normalization and validation are deterministic.
@@ -45,6 +48,7 @@ Enable creating a new forum directly from `/forums` and show forum entries from 
 ## Result
 1. Added deterministic forum-hub projection and validation:
    - `src/lib/routes/forumsHub.ts`
+   - includes title validation
 2. Added Dexie-backed forum hub store:
    - `src/lib/stores/forumHub.ts`
 3. Updated `/forums` page:
@@ -52,7 +56,14 @@ Enable creating a new forum directly from `/forums` and show forum entries from 
    - dynamic forum cards
    - top `Forum erstellen` CTA
    - composer below list
-4. Added unit tests:
+   - composer now captures both forum ID and forum title
+4. Added local community profile persistence:
+   - `src/lib/data/db.ts`
+   - forum title stored in `communityProfiles` and read for UI display
+5. Updated community/topbar display usage:
+   - `src/lib/stores/community.ts`
+   - `src/lib/components/layout/app-shell.svelte`
+6. Added unit tests:
    - `tests/forums-hub.view-model.test.ts`
 
 ## Status

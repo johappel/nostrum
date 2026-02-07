@@ -461,7 +461,7 @@
 			<a class="app-nav-link" href="/forums">Forums</a>
 			{#if forumContext.communityId}
 				<a class="app-nav-link" href={`/forums/${forumContext.communityId}`}>
-					{forumContext.communityId}
+					{$communityStore?.title ?? forumContext.communityId}
 				</a>
 			{/if}
 		</nav>

@@ -8,6 +8,7 @@ describe('Dexie foundation', () => {
 		const db = getDb();
 		expect(db).not.toBeNull();
 		expect(db?.tables.map((table) => table.name).sort()).toEqual([
+			'communityProfiles',
 			'events',
 			'labels',
 			'lists',
@@ -27,6 +28,7 @@ describe('Dexie foundation', () => {
 		expect(counts).toEqual({
 			sections: 2,
 			lists: 2,
+			communityProfiles: 1,
 			events: 2,
 			threadHeads: 1,
 			reactions: 2,

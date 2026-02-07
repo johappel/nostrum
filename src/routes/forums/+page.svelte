@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { ensureDemoData } from '$lib/data/db';
-	import { validateCommunityId } from '$lib/routes/forumsHub';
+	import { ensureDemoData, upsertCommunityProfile } from '$lib/data/db';
+	import { validateCommunityId, validateCommunityTitle } from '$lib/routes/forumsHub';
 	import { notifyError, notifySuccess } from '$lib/components/ui';
 	import { createForumHubStore } from '$lib/stores';
 
 	const forumHubStore = createForumHubStore();
 
 	let newForumId = $state('');
+	let newForumTitle = $state('');
 	let creating = $state(false);
 	let createStatus = $state('');
 
@@ -26,13 +27,23 @@
 			createStatus = validated.message;
 			return;
 		}
+		const validatedTitle = validateCommunityTitle(newForumTitle);
+		if (!validatedTitle.ok) {
+			createStatus = validatedTitle.message;
+			return;
+		}
 
 		creating = true;
 		try {
 			await ensureDemoData(validated.community);
+			await upsertCommunityProfile({
+				community: validated.community,
+				title: validatedTitle.title
+			});
 			newForumId = '';
-			createStatus = `Forum \`${validated.community}\` wurde erstellt.`;
-			notifySuccess('Forum erstellt', validated.community);
+			newForumTitle = '';
+			createStatus = `Forum \`${validatedTitle.title}\` wurde erstellt.`;
+			notifySuccess('Forum erstellt', validatedTitle.title);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			createStatus = `Forum konnte nicht erstellt werden: ${message}`;
@@ -70,10 +81,10 @@
 					<li>
 						<article class="forum-card">
 							<header>
-								<a href={`/forums/${forum.community}`}>{forum.community}</a>
+								<a href={`/forums/${forum.community}`}>{forum.title}</a>
 							</header>
 							<p>
-								Threads {forum.threadCount} | Members {forum.generalMemberCount} | Moderators {forum.moderatorCount}
+								ID {forum.community} | Threads {forum.threadCount} | Members {forum.generalMemberCount} | Moderators {forum.moderatorCount}
 							</p>
 						</article>
 					</li>
@@ -90,6 +101,10 @@
 			<label>
 				Forum-ID (z. B. `nostr-dev`)
 				<input type="text" bind:value={newForumId} maxlength="64" placeholder="forum-id" required />
+			</label>
+			<label>
+				Forum-Titel (Anzeige in Topbar/Navbar)
+				<input type="text" bind:value={newForumTitle} maxlength="80" placeholder="Nostr Developer Forum" required />
 			</label>
 			<div class="composer-actions">
 				<button type="submit" class="ui-button ui-button-primary" disabled={creating}>

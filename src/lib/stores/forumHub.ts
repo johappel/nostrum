@@ -8,15 +8,17 @@ export function createForumHubStore(): Readable<ForumHubItem[]> {
 	if (!db) return readable([]);
 
 	return liveQueryReadable(async () => {
-		const [sections, lists, threadHeads] = await Promise.all([
+		const [sections, lists, profiles, threadHeads] = await Promise.all([
 			db.sections.toArray(),
 			db.lists.toArray(),
+			db.communityProfiles.toArray(),
 			db.threadHeads.toArray()
 		]);
 
 		return buildForumHubItems({
 			sections,
 			lists,
+			profiles,
 			threadHeads
 		});
 	}, []);

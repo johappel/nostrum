@@ -1,7 +1,8 @@
-import type { ListRow, SectionRow, ThreadHeadRow } from '$lib/data/db';
+import type { CommunityProfileRow, ListRow, SectionRow, ThreadHeadRow } from '$lib/data/db';
 
 export interface ForumHubItem {
 	community: string;
+	title: string;
 	threadCount: number;
 	generalMemberCount: number;
 	moderatorCount: number;
@@ -10,6 +11,9 @@ export interface ForumHubItem {
 
 export type CommunityValidationResult =
 	| { ok: true; community: string }
+	| { ok: false; message: string };
+export type CommunityTitleValidationResult =
+	| { ok: true; title: string }
 	| { ok: false; message: string };
 
 export function normalizeCommunityId(input: string): string {
@@ -39,9 +43,21 @@ export function validateCommunityId(
 	return { ok: true, community };
 }
 
+export function validateCommunityTitle(input: string): CommunityTitleValidationResult {
+	const title = input.trim();
+	if (title.length < 3) {
+		return { ok: false, message: 'Forum-Titel muss mindestens 3 Zeichen haben.' };
+	}
+	if (title.length > 80) {
+		return { ok: false, message: 'Forum-Titel darf maximal 80 Zeichen haben.' };
+	}
+	return { ok: true, title };
+}
+
 interface BuildForumHubItemsInput {
 	sections: SectionRow[];
 	lists: ListRow[];
+	profiles: CommunityProfileRow[];
 	threadHeads: ThreadHeadRow[];
 }
 
@@ -63,6 +79,7 @@ export function buildForumHubItems(input: BuildForumHubItemsInput): ForumHubItem
 		if (existing) return existing;
 		const created: ForumHubItem = {
 			community,
+			title: community,
 			threadCount: 0,
 			generalMemberCount: 0,
 			moderatorCount: 0,
@@ -80,6 +97,11 @@ export function buildForumHubItems(input: BuildForumHubItemsInput): ForumHubItem
 		const item = ensureItem(list.community);
 		if (list.dTag === 'General') item.generalMemberCount = list.members.length;
 		if (list.dTag === 'Moderation') item.moderatorCount = list.members.length;
+	}
+
+	for (const profile of input.profiles) {
+		const item = ensureItem(profile.community);
+		item.title = profile.title;
 	}
 
 	for (const head of input.threadHeads) {
