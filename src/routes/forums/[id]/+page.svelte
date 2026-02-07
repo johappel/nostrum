@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { ensureDemoData } from '$lib/data/db';
+	import { syncGeneralListFromWpEndpoint } from '$lib/provisioning/wpMembers';
 	import { createForumRouteStores } from '$lib/routes/contracts';
 	import type { PageData } from './$types';
 
@@ -8,6 +9,8 @@
 	let communityStore = $state(createForumRouteStores('').communityStore);
 	let threadListStore = $state(createForumRouteStores('').threadListStore);
 	let syncStateStore = $state(createForumRouteStores('').syncStateStore);
+	let wpSyncStatus = $state<'idle' | 'synced' | 'failed'>('idle');
+	let importedWpUsers = $state(0);
 
 	$effect(() => {
 		const stores = createForumRouteStores(data.forumId);
@@ -18,6 +21,18 @@
 
 	onMount(async () => {
 		await ensureDemoData(data.forumId);
+		try {
+			const members = await syncGeneralListFromWpEndpoint({
+				community: data.forumId,
+				endpoint: '/api/mock-wp-users',
+				preserveExisting: true
+			});
+			importedWpUsers = members.length;
+			wpSyncStatus = 'synced';
+		} catch (error) {
+			console.error('WP member sync failed', error);
+			wpSyncStatus = 'failed';
+		}
 	});
 </script>
 
@@ -37,6 +52,11 @@
 {#if $syncStateStore.lastSyncAt}
 	<p>Letzter Sync: {new Date($syncStateStore.lastSyncAt).toLocaleString()}</p>
 {/if}
+{#if wpSyncStatus === 'synced'}
+	<p>WP-Mitglieder synchronisiert: {importedWpUsers}</p>
+{:else if wpSyncStatus === 'failed'}
+	<p>WP-Mitgliedersync fehlgeschlagen.</p>
+{/if}
 
 <h2>Threads</h2>
 {#if $threadListStore.length === 0}
@@ -47,7 +67,7 @@
 			<li>
 				<a href={`/forums/${thread.community}/${thread.rootId}`}>{thread.title}</a>
 				<small>
-					by {thread.author} · replies {thread.replyCount}
+					by {thread.author} | replies {thread.replyCount}
 				</small>
 			</li>
 		{/each}

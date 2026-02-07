@@ -229,6 +229,10 @@ SHOULD:
 - Fuer praktikable WP-Integration wird ein minimaler Endpoint empfohlen:
   - liefert `{id, display_name, nostr_pubkey_hex}` fuer freigeschaltete Mitglieder
   - normale `/wp/v2/users` Responses liefern typischerweise nicht alle benoetigten Meta-Felder oeffentlich
+- Dev-Setup im Client:
+  - lokaler Mock-Endpoint: `/api/mock-wp-users`
+  - synchronisiert Liste `d=General` in Dexie beim Oeffnen von `/forums/:id`
+  - `preserveExisting=true`, damit Demo-/bestehende Mitglieder nicht ueberschrieben werden
 
 ## Muss-Praezisierungen vor Implementierung
 - Pubkey-Format:

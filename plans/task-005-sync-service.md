@@ -62,3 +62,10 @@ Done
 6. Validation:
    - `pnpm test` passes
    - `pnpm check` passes
+
+## Follow-up
+1. Added WordPress member provisioning helper for `d=General` list:
+   - `src/lib/provisioning/wpMembers.ts`
+2. Added local mock endpoint for development:
+   - `src/routes/api/mock-wp-users/+server.ts`
+   - fixture: `src/lib/fixtures/mockWpUsers.ts`

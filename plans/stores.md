@@ -41,9 +41,10 @@ Kernidee:
 ## Ladefluss (schnell wahrgenommene UI)
 1. App startet, liest `thread_heads` lokal, rendert sofort.
 2. Parallel startet Sync von Relays mit `since=sync_cursor`.
-3. Neue Events werden in Batches gespeichert (Transaktionen).
-4. Materialisierte Tabellen (`thread_heads`, `reactions`) werden inkrementell aktualisiert.
-5. `liveQuery` triggert nur betroffene Komponenten.
+3. Optionales Provisioning: `d=General` wird aus WP-Member-Endpoint (z. B. `/api/mock-wp-users`) in Dexie aktualisiert.
+4. Neue Events werden in Batches gespeichert (Transaktionen).
+5. Materialisierte Tabellen (`thread_heads`, `reactions`) werden inkrementell aktualisiert.
+6. `liveQuery` triggert nur betroffene Komponenten.
 
 ## Store-Schnitt (minimal)
 - `communityStore(communityPubkey)`
