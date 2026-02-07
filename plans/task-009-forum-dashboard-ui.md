@@ -34,4 +34,28 @@ Redesign `/forums/:id` into a modern dashboard with thread feed, composer, and c
 3. `pnpm test` and `pnpm check` pass.
 
 ## Status
-Planned
+Done
+
+## Result
+1. Updated dashboard UI on `/forums/:id`:
+   - `src/routes/forums/[id]/+page.svelte`
+   - removed duplicated community/sync meta block from main content
+   - introduced structured dashboard layout (header, composer card, controls, thread feed cards)
+2. Added deterministic feed view model module:
+   - `src/lib/routes/forumDashboard.ts`
+   - thread sorting (`latest`, `active`)
+   - write-state filtering (`all`, `pending`, `failed`)
+   - stale-sync helper logic
+3. Added dashboard-specific tests:
+   - `tests/forum-dashboard.view-model.test.ts`
+4. Kept write feedback contract integrated:
+   - optimistic submit and result messaging remain wired to write flow + toasts
+5. Added stale/sync state hints in dashboard header while keeping detailed metrics in sidebars.
+
+## Acceptance Criteria Check
+1. Dashboard shows immediate user feedback for writes.
+   - Pass: composer keeps optimistic write flow status and toasts.
+2. Thread feed remains readable with dense metadata.
+   - Pass: card-based feed with title, author, replies, activity, and status badge.
+3. `pnpm test` and `pnpm check` pass.
+   - Pass: both commands successful after implementation.
