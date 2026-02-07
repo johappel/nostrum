@@ -40,3 +40,32 @@ npm run build
 You can preview the production build with `npm run preview`.
 
 > To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+
+## Local Nostr Relay + Demo Seed
+
+Start a local relay:
+
+```sh
+pnpm relay:up
+```
+
+Seed demo community, lists, forum threads and replies:
+
+```sh
+pnpm relay:seed
+```
+
+The seed command prints the community pubkey and forum route, e.g.:
+`/forums/<community-pubkey>`.
+
+Useful commands:
+
+```sh
+pnpm relay:logs
+pnpm relay:reset
+pnpm relay:down
+```
+
+By default, seeding targets `ws://127.0.0.1:7011`.
+You can override this using `LOCAL_RELAY_URL` in `.env`.
+The forum page sync uses `PUBLIC_NOSTR_RELAY_URL` (same default value).

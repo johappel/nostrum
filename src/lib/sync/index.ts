@@ -1,4 +1,5 @@
 export { normalizeSyncEvent, toEventRow } from './normalize';
+export { createRelaySyncFetcher } from './relayFetcher';
 export {
 	getCursor,
 	resetCursorsForCommunity,
@@ -13,4 +14,3 @@ export type {
 	SyncOptions,
 	SyncResult
 } from './types';
-

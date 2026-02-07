@@ -72,3 +72,6 @@ Done
 3. Added configurable proxy endpoint for dev/prod parity:
    - `src/routes/api/wp-members/+server.ts`
    - source endpoint via `WP_MEMBERS_ENDPOINT` (ENV), fallback to mock if unset
+4. Added live relay fetcher integration for forum route:
+   - `src/lib/sync/relayFetcher.ts`
+   - `/forums/:id` triggers `syncCommunity()` against `PUBLIC_NOSTR_RELAY_URL`

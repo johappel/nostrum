@@ -250,6 +250,8 @@ SHOULD:
 - Relay-Strategie:
   - write-to-all, read-from-all, dedupe per event id
   - Timeout/Retry/Partial-Failure Verhalten
+  - Dev: lokales Relay via `docker compose` auf `ws://127.0.0.1:7011`
+  - Dev-Seeding: `pnpm relay:seed` publiziert `10222`, `30000`, `11`, `7`, `1985`
 
 ## Minimaler MVP-Scope
 - Eine Community
