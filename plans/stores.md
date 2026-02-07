@@ -57,6 +57,17 @@ Kernidee:
 - `syncStateStore(communityPubkey)`
   - `isSyncing`, `lastSyncAt`, `relayHealth`
 
+## Route-Contracts
+- `/forums/:id`
+  - data: `{ forumId }`
+- `/forums/:id/:thread_id`
+  - data: `{ forumId, threadId }`
+- `/forums/:id/:thread_id/:post_id`
+  - data: `{ forumId, threadId, postId }`
+- `postId` ist reine Fokus-/Highlight-Information.
+  - Store-Grundlage bleibt `threadDetailStore(threadId)`.
+  - Bei unbekanntem `postId` zeigt die UI den Thread normal plus Hinweis.
+
 ## Performance-Regeln
 - Local-first: nie auf Relay warten, wenn Cache vorhanden ist.
 - Inkrementell statt Full-Reload.

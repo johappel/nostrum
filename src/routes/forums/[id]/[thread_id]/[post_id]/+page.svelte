@@ -5,5 +5,5 @@
 	let { data }: { data: PageData } = $props();
 </script>
 
-<ThreadDetailView forumId={data.forumId} threadId={data.threadId} />
+<ThreadDetailView forumId={data.forumId} threadId={data.threadId} postId={data.postId} />
 

@@ -20,6 +20,10 @@ export interface ThreadRouteData extends ForumRouteData {
 	threadId: string;
 }
 
+export interface ThreadPostRouteData extends ThreadRouteData {
+	postId: string;
+}
+
 export function mapForumRouteData(params: { id?: string }): ForumRouteData {
 	return { forumId: params.id ?? '' };
 }
@@ -31,6 +35,18 @@ export function mapThreadRouteData(params: {
 	return {
 		forumId: params.id ?? '',
 		threadId: params.thread_id ?? ''
+	};
+}
+
+export function mapThreadPostRouteData(params: {
+	id?: string;
+	thread_id?: string;
+	post_id?: string;
+}): ThreadPostRouteData {
+	return {
+		forumId: params.id ?? '',
+		threadId: params.thread_id ?? '',
+		postId: params.post_id ?? ''
 	};
 }
 
@@ -107,4 +123,3 @@ export function refreshThreadRouteStores(
 	if (current.forumId === forumId && current.threadId === threadId) return current;
 	return createThreadRouteStores(forumId, threadId, deps);
 }
-

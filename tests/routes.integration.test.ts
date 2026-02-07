@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { readable } from 'svelte/store';
 import { load as forumLoad } from '../src/routes/forums/[id]/+page';
 import { load as threadLoad } from '../src/routes/forums/[id]/[thread_id]/+page';
+import { load as postLoad } from '../src/routes/forums/[id]/[thread_id]/[post_id]/+page';
 import {
 	createForumRouteStores,
 	createThreadRouteStores,
 	mapForumRouteData,
+	mapThreadPostRouteData,
 	mapThreadRouteData,
 	refreshForumRouteStores,
 	refreshThreadRouteStores,
@@ -42,6 +44,28 @@ describe('route data contract', () => {
 
 		const loaded = await threadLoad({ params: { id: 'demo', thread_id: 'thread-1' } } as any);
 		expect(loaded).toEqual({ forumId: 'demo', threadId: 'thread-1' });
+	});
+
+	it('maps post route params to post-focused data', async () => {
+		const data = mapThreadPostRouteData({
+			id: 'demo',
+			thread_id: 'thread-1',
+			post_id: 'post-99'
+		});
+		expect(data).toEqual({
+			forumId: 'demo',
+			threadId: 'thread-1',
+			postId: 'post-99'
+		});
+
+		const loaded = await postLoad({
+			params: { id: 'demo', thread_id: 'thread-1', post_id: 'post-99' }
+		} as any);
+		expect(loaded).toEqual({
+			forumId: 'demo',
+			threadId: 'thread-1',
+			postId: 'post-99'
+		});
 	});
 });
 

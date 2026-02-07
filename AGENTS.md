@@ -15,6 +15,7 @@ This file defines how to work in this repository and what must be documented now
 `/forums`
 `/forums/:id`
 `/forums/:id/:thread_id`
+`/forums/:id/:thread_id/:post_id`
 3. Dexie-based local data layer exists in `src/lib/data/db.ts`.
 4. First stores exist in `src/lib/stores/*`.
 5. Planning docs exist in `plans/architecture-communikeys-v2.md`, `plans/stores.md`, `UseCases.md`.
