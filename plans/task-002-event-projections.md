@@ -34,5 +34,19 @@ Implement deterministic projection logic from raw events to read models (`thread
 3. No mutation of input event objects.
 
 ## Status
-Planned
+Done
 
+## Result
+1. Added pure projection modules in `src/lib/projections/*`:
+   - `threadHeads.ts`
+   - `reactions.ts`
+   - `labels.ts`
+2. Added unit tests in `tests/projections.test.ts` covering:
+   - thread head projection from `kind:11`
+   - reply count and last activity updates
+   - vote/reaction dedupe by latest `(targetId, author)`
+   - label grouping by target and label
+   - deterministic output, malformed input tolerance, and no input mutation
+3. Validation:
+   - `pnpm test` passes
+   - `pnpm check` passes
