@@ -1,0 +1,37 @@
+# Task 010 - Thread Detail UI
+
+## Goal
+Implement a state-of-the-art thread detail experience with clear hierarchy for root post, replies, reactions, and reports.
+
+## Scope
+1. Redesign thread detail composition (root hero + reply stream).
+2. Integrate reaction/vote/report action bar.
+3. Visualize per-target pending/confirmed/failed write states.
+4. Keep post-focus route (`post_id`) highlight behavior.
+
+## Out of scope
+1. Nested reply protocol changes.
+2. Rich media attachments.
+
+## Dependencies
+1. Task 008 complete.
+2. Task 009 recommended.
+3. Task 006 write flow APIs available.
+
+## Deliverables
+1. Updated `src/lib/components/ThreadDetailView.svelte`.
+2. Reusable action bar component(s).
+3. Clear status UI for retries on failed writes.
+
+## Test plan (unit tests)
+1. Post focus highlight stays stable for `/forums/:id/:thread_id/:post_id`.
+2. Reaction/report actions expose expected pending state.
+3. Failed actions keep retry path visible.
+
+## Acceptance criteria
+1. Thread detail keeps high readability under activity.
+2. Action outcomes are visible without page reload.
+3. `pnpm test` and `pnpm check` pass.
+
+## Status
+Planned
