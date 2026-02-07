@@ -92,4 +92,18 @@ describe('app shell panel state', () => {
 		);
 		expect(viewportChanged).toEqual({ leftOpen: true, rightOpen: true });
 	});
+
+	it('keeps panel state stable while navigating inside forum routes', () => {
+		const preserved = syncShellPanelsToContext(
+			{ leftOpen: false, rightOpen: true },
+			{
+				viewport: 'desktop',
+				context: { isForumRoute: true },
+				previousViewport: 'desktop',
+				previousIsForumRoute: true
+			}
+		);
+
+		expect(preserved).toEqual({ leftOpen: false, rightOpen: true });
+	});
 });

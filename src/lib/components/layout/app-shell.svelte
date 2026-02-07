@@ -2,10 +2,13 @@
 	import { onMount } from 'svelte';
 	import type { Snippet } from 'svelte';
 	import {
+		CircleAlert,
 		Clock3,
+		EyeOff,
 		House,
 		LayoutList,
 		MessageSquare,
+		MoveRight,
 		PanelLeftClose,
 		PanelLeftOpen,
 		PanelRightClose,
@@ -16,11 +19,19 @@
 		Users
 	} from '@lucide/svelte';
 	import SyncFeedbackBanner from '$lib/components/sync/SyncFeedbackBanner.svelte';
+	import { DEFAULT_ROUTE_USER_PUBKEY } from '$lib/routes/contracts';
+	import {
+		buildMemberPanelView,
+		buildModerationPanelView,
+		buildModerationQueue
+	} from '$lib/routes/moderationPanels';
 	import { ThemeToggle } from '$lib/components/ui';
 	import { summarizeSyncFeedback } from '$lib/routes/syncFeedback';
 	import {
 		createCommunityStore,
+		createModerationLabelsStore,
 		createPendingWritesStore,
+		createPermissionsStore,
 		createSyncStateStore
 	} from '$lib/stores';
 	import {
@@ -75,12 +86,23 @@
 	let syncStateStore = $state(createSyncStateStore(''));
 	let pendingWritesStore = $state(createPendingWritesStore(''));
 	let communityStore = $state(createCommunityStore(''));
+	let permissionsStore = $state(createPermissionsStore(DEFAULT_ROUTE_USER_PUBKEY, ''));
+	let moderationLabelsStore = $state(createModerationLabelsStore(''));
 
 	const iconSize = 16;
 	const compactIconSize = 17;
 	const pendingCount = $derived($pendingWritesStore.filter((row) => row.status === 'pending').length);
 	const failedCount = $derived($pendingWritesStore.filter((row) => row.status === 'failed').length);
 	const relayCount = $derived($syncStateStore.relays.length);
+	const canModerate = $derived($permissionsStore.canModerate);
+	const memberPanelView = $derived(
+		buildMemberPanelView({
+			generalMembers: $communityStore?.generalMembers ?? [],
+			moderatorMembers: $communityStore?.moderatorMembers ?? []
+		})
+	);
+	const moderationQueue = $derived(buildModerationQueue($moderationLabelsStore));
+	const moderationPanelView = $derived(buildModerationPanelView(canModerate, moderationQueue));
 	const syncFeedback = $derived(
 		summarizeSyncFeedback({
 			syncState: $syncStateStore,
@@ -120,12 +142,16 @@
 			syncStateStore = createSyncStateStore('');
 			pendingWritesStore = createPendingWritesStore('');
 			communityStore = createCommunityStore('');
+			permissionsStore = createPermissionsStore(DEFAULT_ROUTE_USER_PUBKEY, '');
+			moderationLabelsStore = createModerationLabelsStore('');
 			return;
 		}
 
 		syncStateStore = createSyncStateStore(forumContext.communityId);
 		pendingWritesStore = createPendingWritesStore(forumContext.communityId);
 		communityStore = createCommunityStore(forumContext.communityId);
+		permissionsStore = createPermissionsStore(DEFAULT_ROUTE_USER_PUBKEY, forumContext.communityId);
+		moderationLabelsStore = createModerationLabelsStore(forumContext.communityId);
 	});
 
 	function updateViewportFromWindow(): void {
@@ -269,17 +295,91 @@
 			</li>
 		</ul>
 	{:else if $communityStore}
+		<section class="shell-panel-section" aria-label="Member panel">
+			<div class="shell-panel-section-head">
+				<h3>
+					<Users size={iconSize} />
+					<span>Member Panel</span>
+				</h3>
+			</div>
+			<div class="shell-member-block">
+				<p>General Members <strong>{memberPanelView.generalCount}</strong></p>
+				{#if memberPanelView.generalCount === 0}
+					<p class="shell-muted">Keine General-Member im Cache.</p>
+				{:else}
+					<ul class="shell-member-list">
+						{#each memberPanelView.visibleGeneralMembers as member}
+							<li>{member}</li>
+						{/each}
+					</ul>
+					{#if memberPanelView.hiddenGeneralCount > 0}
+						<p class="shell-muted">+{memberPanelView.hiddenGeneralCount} weitere</p>
+					{/if}
+				{/if}
+			</div>
+			<div class="shell-member-block">
+				<p>Moderators <strong>{memberPanelView.moderatorCount}</strong></p>
+				{#if memberPanelView.moderatorCount === 0}
+					<p class="shell-muted">Keine Moderatorenliste im Cache.</p>
+				{:else}
+					<ul class="shell-member-list">
+						{#each memberPanelView.visibleModeratorMembers as member}
+							<li>{member}</li>
+						{/each}
+					</ul>
+					{#if memberPanelView.hiddenModeratorCount > 0}
+						<p class="shell-muted">+{memberPanelView.hiddenModeratorCount} weitere</p>
+					{/if}
+				{/if}
+			</div>
+		</section>
+
+		<section class="shell-panel-section" aria-label="Moderation panel">
+			<div class="shell-panel-section-head">
+				<h3>
+					<Shield size={iconSize} />
+					<span>Moderation Panel</span>
+				</h3>
+				{#if canModerate}
+					<span class="status-pill status-pill-confirmed">can moderate</span>
+				{:else}
+					<span class="status-pill">read-only</span>
+				{/if}
+			</div>
+			{#if !moderationPanelView.canModerate}
+				<p class="shell-muted">Keine Moderationsrechte. Report-Queue nur mit Moderatorrolle sichtbar.</p>
+			{:else if moderationPanelView.isEmpty}
+				<p class="shell-muted">Report-Queue ist leer.</p>
+			{:else}
+				<ul class="shell-report-list">
+					{#each moderationPanelView.queue as report}
+						<li class="shell-report-item">
+							<div class="shell-report-head">
+								<span>Target: {report.targetId}</span>
+								<strong>{report.reportCount} reports</strong>
+							</div>
+							<p>Labels: {report.labels.join(', ')}</p>
+							{#if report.reasons.length > 0}
+								<p>Reasons: {report.reasons.join(' | ')}</p>
+							{/if}
+							<p>Last by {report.latestAuthor} at {new Date(report.latestCreatedAt).toLocaleString()}</p>
+							<div class="shell-report-actions">
+								<button type="button" class="ui-button" title="Placeholder for Task 013+" disabled>
+									<EyeOff size={iconSize} />
+									<span>Hide</span>
+								</button>
+								<button type="button" class="ui-button" title="Placeholder for Task 013+" disabled>
+									<MoveRight size={iconSize} />
+									<span>Move</span>
+								</button>
+							</div>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</section>
+
 		<ul class="shell-stats-list">
-			<li>
-				<Users size={iconSize} />
-				<span>General Members</span>
-				<strong>{$communityStore.generalMemberCount}</strong>
-			</li>
-			<li>
-				<Shield size={iconSize} />
-				<span>Moderators</span>
-				<strong>{$communityStore.moderatorCount}</strong>
-			</li>
 			<li>
 				<Clock3 size={iconSize} />
 				<span>Last Sync</span>
@@ -315,6 +415,12 @@
 			<span class="shell-mini-link" title={`Moderators ${$communityStore?.moderatorCount ?? 0}`}>
 				<Shield size={compactIconSize} />
 				<span class="sr-only">Moderators</span>
+			</span>
+		</li>
+		<li>
+			<span class="shell-mini-link" title={`Reports ${moderationPanelView.queue.length}`}>
+				<CircleAlert size={compactIconSize} />
+				<span class="sr-only">Report Queue</span>
 			</span>
 		</li>
 		<li>

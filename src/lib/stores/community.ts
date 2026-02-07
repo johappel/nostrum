@@ -7,6 +7,13 @@ export interface CommunityView {
 	sections: Array<{ section: string; kinds: number[]; listRef: string }>;
 	generalMemberCount: number;
 	moderatorCount: number;
+	generalMembers: string[];
+	moderatorMembers: string[];
+}
+
+function normalizeMembers(members: string[] | undefined): string[] {
+	if (!members || members.length === 0) return [];
+	return [...new Set(members)].sort((a, b) => a.localeCompare(b));
 }
 
 export function createCommunityStore(community: string): Readable<CommunityView | null> {
@@ -31,8 +38,9 @@ export function createCommunityStore(community: string): Readable<CommunityView 
 				listRef: section.listRef
 			})),
 			generalMemberCount: generalList?.members.length ?? 0,
-			moderatorCount: moderationList?.members.length ?? 0
+			moderatorCount: moderationList?.members.length ?? 0,
+			generalMembers: normalizeMembers(generalList?.members),
+			moderatorMembers: normalizeMembers(moderationList?.members)
 		};
 	});
 }
-

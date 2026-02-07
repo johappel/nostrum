@@ -454,6 +454,98 @@ a {
   font-size: 0.82rem;
 }
 
+.shell-panel-section {
+  margin-top: 0.75rem;
+  padding-top: 0.7rem;
+  border-top: 1px dashed var(--border);
+  display: grid;
+  gap: 0.5rem;
+}
+
+.shell-panel-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+}
+
+.shell-panel-section-head h3 {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.88rem;
+}
+
+.shell-member-block p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted-foreground);
+}
+
+.shell-member-list {
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.28rem;
+}
+
+.shell-member-list li {
+  font-size: 0.82rem;
+  padding: 0.22rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: color-mix(in oklab, var(--muted) 65%, transparent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell-report-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.shell-report-item {
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 1px);
+  padding: 0.45rem 0.5rem;
+  background: color-mix(in oklab, var(--muted) 60%, transparent);
+}
+
+.shell-report-item p {
+  margin: 0.22rem 0 0;
+  font-size: 0.78rem;
+  color: var(--muted-foreground);
+}
+
+.shell-report-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+}
+
+.shell-report-head strong {
+  font-size: 0.76rem;
+}
+
+.shell-report-actions {
+  margin-top: 0.35rem;
+  display: inline-flex;
+  gap: 0.3rem;
+}
+
+.shell-report-actions .ui-button {
+  padding: 0.25rem 0.45rem;
+  font-size: 0.75rem;
+}
+
 .shell-route-meta {
   margin-top: 0.8rem;
   padding-top: 0.65rem;
