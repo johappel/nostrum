@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { env } from '$env/dynamic/public';
 	import { onMount } from 'svelte';
+	import SyncFeedbackBanner from '$lib/components/sync/SyncFeedbackBanner.svelte';
 	import {
 		createBrowserNip07Signer,
 		createSimplePoolPublisher,
@@ -10,16 +11,17 @@
 	import { syncGeneralListFromWpEndpoint } from '$lib/provisioning/wpMembers';
 	import {
 		computeForumDashboardThreads,
-		isSyncStateStale,
+		computeThreadRetryCandidates,
 		type ForumDashboardFilter,
 		type ForumDashboardSort
 	} from '$lib/routes/forumDashboard';
+	import { summarizeSyncFeedback, type SyncRequestState } from '$lib/routes/syncFeedback';
 	import {
 		createForumRouteStores,
 		DEFAULT_ROUTE_USER_PUBKEY
 	} from '$lib/routes/contracts';
 	import { notifyError, notifySuccess, notifyWriteStatus } from '$lib/components/ui';
-	import { createWriteStatusByEventStore } from '$lib/stores';
+	import { createPendingWritesStore, createWriteStatusByEventStore } from '$lib/stores';
 	import { createRelaySyncFetcher, syncCommunity } from '$lib/sync';
 	import type { PageData } from './$types';
 
@@ -27,9 +29,11 @@
 	let communityStore = $state(createForumRouteStores('').communityStore);
 	let threadListStore = $state(createForumRouteStores('').threadListStore);
 	let syncStateStore = $state(createForumRouteStores('').syncStateStore);
+	let pendingWritesStore = $state(createPendingWritesStore(''));
 	let wpSyncStatus = $state<'idle' | 'synced' | 'failed'>('idle');
 	let importedWpUsers = $state(0);
-	let relaySyncStatus = $state<'idle' | 'synced' | 'failed'>('idle');
+	let relaySyncStatus = $state<SyncRequestState>('idle');
+	let relaySyncBusy = $state(false);
 	let relayFetchedEvents = $state(0);
 	let relayUrl = $state('ws://127.0.0.1:7011');
 	let writeStatusStore = $state(createWriteStatusByEventStore(''));
@@ -38,8 +42,10 @@
 	let newThreadContent = $state('');
 	let threadSubmitStatus = $state('');
 	let threadSubmitting = $state(false);
+	let retryingPendingIds = $state<number[]>([]);
 	let sortMode = $state<ForumDashboardSort>('latest');
 	let filterMode = $state<ForumDashboardFilter>('all');
+	let nowMs = $state(Date.now());
 
 	const staleThresholdMs = 5 * 60 * 1000;
 	const dashboardThreads = $derived(
@@ -48,24 +54,50 @@
 			filter: filterMode
 		})
 	);
-	const isCacheStale = $derived(isSyncStateStale($syncStateStore.lastSyncAt, Date.now(), staleThresholdMs));
+	const threadRetryCandidates = $derived(computeThreadRetryCandidates($pendingWritesStore));
+	const syncFeedback = $derived(
+		summarizeSyncFeedback({
+			syncState: $syncStateStore,
+			nowMs,
+			requestState: relaySyncStatus,
+			staleThresholdMs,
+			hasLocalContent: dashboardThreads.length > 0
+		})
+	);
 
 	$effect(() => {
 		const stores = createForumRouteStores(data.forumId);
 		communityStore = stores.communityStore;
 		threadListStore = stores.threadListStore;
 		syncStateStore = stores.syncStateStore;
+		pendingWritesStore = createPendingWritesStore(data.forumId);
 		writeStatusStore = createWriteStatusByEventStore(data.forumId);
 	});
 
-	onMount(async () => {
+	onMount(() => {
 		writeService = createWriteFlowService({
 			signEvent: createBrowserNip07Signer(),
 			publishEvent: createSimplePoolPublisher()
 		});
 		relayUrl = env.PUBLIC_NOSTR_RELAY_URL || 'ws://127.0.0.1:7011';
 
+		const timerId = window.setInterval(() => {
+			nowMs = Date.now();
+		}, 30_000);
+
+		void bootstrapForumDashboard();
+		return () => {
+			window.clearInterval(timerId);
+		};
+	});
+
+	async function bootstrapForumDashboard(): Promise<void> {
 		await ensureDemoData(data.forumId);
+		await syncWpMembers();
+		await runRelaySync('initial');
+	}
+
+	async function syncWpMembers(): Promise<void> {
 		try {
 			const members = await syncGeneralListFromWpEndpoint({
 				community: data.forumId,
@@ -80,6 +112,12 @@
 			wpSyncStatus = 'failed';
 			notifyError('WP-Mitgliedersync fehlgeschlagen');
 		}
+	}
+
+	async function runRelaySync(trigger: 'initial' | 'retry'): Promise<void> {
+		if (relaySyncBusy) return;
+		relaySyncBusy = true;
+		relaySyncStatus = 'syncing';
 
 		try {
 			const result = await syncCommunity({
@@ -90,13 +128,20 @@
 			});
 			relayFetchedEvents = result.fetchedEvents;
 			relaySyncStatus = 'synced';
-			notifySuccess('Relay-Sync erfolgreich', `${result.fetchedEvents} Events geladen.`);
+			if (trigger === 'initial') {
+				notifySuccess('Relay-Sync erfolgreich', `${result.fetchedEvents} Events geladen.`);
+			} else {
+				notifySuccess('Relay-Sync erneut ausgefuehrt', `${result.fetchedEvents} Events geladen.`);
+			}
 		} catch (error) {
 			console.error('Relay sync failed', error);
 			relaySyncStatus = 'failed';
 			notifyError('Relay-Sync fehlgeschlagen');
+		} finally {
+			relaySyncBusy = false;
+			nowMs = Date.now();
 		}
-	});
+	}
 
 	function statusLabel(status: string): string {
 		if (status === 'pending') return 'pending';
@@ -121,6 +166,33 @@
 		if (mode === 'all') return 'Alle';
 		if (mode === 'pending') return 'Pending';
 		return 'Failed';
+	}
+
+	function isPendingRetry(pendingId: number): boolean {
+		return retryingPendingIds.includes(pendingId);
+	}
+
+	async function retryThreadWrite(threadEventId: string): Promise<void> {
+		const candidate = threadRetryCandidates[threadEventId];
+		if (!candidate) {
+			notifyError('Retry nicht moeglich', `Kein fehlgeschlagener Publish fuer ${threadEventId}.`);
+			return;
+		}
+		if (isPendingRetry(candidate.pendingId)) return;
+
+		retryingPendingIds = [...retryingPendingIds, candidate.pendingId];
+		const result = await writeService.retryPendingWrite({
+			pendingId: candidate.pendingId,
+			relays: [relayUrl]
+		});
+		retryingPendingIds = retryingPendingIds.filter((id) => id !== candidate.pendingId);
+
+		if (!result.ok) {
+			notifyError('Retry fehlgeschlagen', result.message);
+			return;
+		}
+
+		notifyWriteStatus('thread', result.status);
 	}
 
 	async function submitThread(event: SubmitEvent): Promise<void> {
@@ -170,14 +242,14 @@
 			<p>Threads in `{data.forumId}`. Fokus auf aktuelle Diskussionen und Schreibstatus.</p>
 		</div>
 		<div class="dashboard-state">
-			{#if relaySyncStatus === 'failed'}
-				<span class="dashboard-alert dashboard-alert-error">Relay-Sync fehlgeschlagen</span>
-			{:else if isCacheStale}
-				<span class="dashboard-alert dashboard-alert-warn">Cache ist moeglicherweise veraltet</span>
-			{:else if relaySyncStatus === 'synced'}
-				<span class="dashboard-alert dashboard-alert-ok">
-					Sync aktiv ({relayFetchedEvents} Events)
-				</span>
+			<SyncFeedbackBanner
+				view={syncFeedback}
+				showRetry={syncFeedback.isFailed || syncFeedback.isStale || syncFeedback.isPartial}
+				retryBusy={relaySyncBusy}
+				onRetry={() => runRelaySync('retry')}
+			/>
+			{#if relaySyncStatus === 'synced'}
+				<span class="dashboard-alert dashboard-alert-ok">Relay events: {relayFetchedEvents}</span>
 			{/if}
 			{#if wpSyncStatus === 'failed'}
 				<span class="dashboard-alert dashboard-alert-error">WP-Import fehlgeschlagen</span>
@@ -262,6 +334,22 @@
 									thread.lastActivityAt
 								)}
 							</p>
+							{#if threadRetryCandidates[thread.rootId]}
+								<div class="thread-card-actions">
+									<button
+										type="button"
+										class="ui-button"
+										disabled={isPendingRetry(threadRetryCandidates[thread.rootId].pendingId)}
+										onclick={() => retryThreadWrite(thread.rootId)}
+									>
+										{#if isPendingRetry(threadRetryCandidates[thread.rootId].pendingId)}
+											Retry laeuft...
+										{:else}
+											Retry publish
+										{/if}
+									</button>
+								</div>
+							{/if}
 						</article>
 					</li>
 				{/each}
@@ -422,6 +510,12 @@
 		margin: 0.35rem 0 0;
 		color: var(--muted-foreground);
 		font-size: 0.86rem;
+	}
+
+	.thread-card-actions {
+		margin-top: 0.55rem;
+		display: flex;
+		justify-content: flex-end;
 	}
 
 	.empty-state {

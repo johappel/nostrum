@@ -4,6 +4,7 @@ export {
 	createNoopSigner,
 	createSimplePoolPublisher,
 	createWriteFlowService,
+	type CreateReplyInput,
 	type CreateReactionInput,
 	type CreateReportInput,
 	type CreateThreadInput,

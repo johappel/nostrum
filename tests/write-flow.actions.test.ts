@@ -153,6 +153,63 @@ describe('write flow service', () => {
 		expect(await db.threadHeads.count()).toBe(1);
 	});
 
+	it('creates replies for thread and reply targets while keeping root linkage', async () => {
+		const db = getDb();
+		if (!db) throw new Error('DB unavailable');
+
+		const signer = createTestSigner('reply');
+		let nowMs = 1_700_000_040_000;
+		const service = createWriteFlowService({
+			signEvent: signer.signEvent,
+			publishEvent: async () => {},
+			resolvePermissions: async () => ({ canPost: true, canReact: true, canModerate: true }),
+			nowMs: () => nowMs
+		});
+
+		const rootResult = await service.createThread({
+			community: 'community-write-replies',
+			authorPubkey: 'author-5',
+			relays: ['wss://relay-1'],
+			content: 'Root thread',
+			forumSlug: 'general'
+		});
+		if (!rootResult.ok) throw new Error('Expected root thread creation to succeed');
+
+		nowMs += 1_000;
+		const firstReplyResult = await service.createReply({
+			community: 'community-write-replies',
+			authorPubkey: 'author-5',
+			relays: ['wss://relay-1'],
+			threadId: rootResult.eventId,
+			content: 'First reply'
+		});
+		if (!firstReplyResult.ok) throw new Error('Expected first reply creation to succeed');
+
+		nowMs += 1_000;
+		const nestedReplyResult = await service.createReply({
+			community: 'community-write-replies',
+			authorPubkey: 'author-5',
+			relays: ['wss://relay-1'],
+			threadId: rootResult.eventId,
+			replyToId: firstReplyResult.eventId,
+			content: 'Nested reply'
+		});
+		if (!nestedReplyResult.ok) throw new Error('Expected nested reply creation to succeed');
+
+		const firstReplyEvent = await db.events.get(firstReplyResult.eventId);
+		const nestedReplyEvent = await db.events.get(nestedReplyResult.eventId);
+		expect(firstReplyEvent?.rootId).toBe(rootResult.eventId);
+		expect(nestedReplyEvent?.rootId).toBe(rootResult.eventId);
+
+		const nestedPending = await db.pendingWrites.get(nestedReplyResult.pendingId);
+		expect(nestedPending?.targetId).toBe(firstReplyResult.eventId);
+		expect(nestedPending?.status).toBe('confirmed');
+
+		const head = await db.threadHeads.get(rootResult.eventId);
+		expect(head?.replyCount).toBe(2);
+		expect(head?.lastActivityAt).toBe(Math.floor(nowMs / 1000));
+	});
+
 	it('denies writes on missing permission before signing', async () => {
 		const db = getDb();
 		if (!db) throw new Error('DB unavailable');

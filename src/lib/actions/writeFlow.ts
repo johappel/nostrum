@@ -43,6 +43,16 @@ export interface CreateThreadInput {
 	forumSlug?: string;
 }
 
+export interface CreateReplyInput {
+	community: string;
+	authorPubkey: string;
+	relays: string[];
+	threadId: string;
+	content: string;
+	replyToId?: string;
+	forumSlug?: string;
+}
+
 export interface CreateReactionInput {
 	community: string;
 	authorPubkey: string;
@@ -127,6 +137,15 @@ function getTitleFromEvent(event: SignedNostrEvent): string {
 	return `Thread ${event.id.slice(0, 8)}`;
 }
 
+function parseRootIdFromEvent(event: SignedNostrEvent): string {
+	const eTags = event.tags.filter(
+		(tag) => tag[0] === 'e' && typeof tag[1] === 'string' && tag[1].length > 0
+	);
+	if (eTags.length === 0) return event.id;
+	const rootTag = eTags.find((tag) => tag[3] === 'root');
+	return rootTag?.[1] ?? eTags[0][1];
+}
+
 function defaultNowMs(): number {
 	return Date.now();
 }
@@ -205,10 +224,7 @@ function buildThreadHead(event: SignedNostrEvent, community: string): ThreadHead
 }
 
 function toEventRow(event: SignedNostrEvent, community: string): NostrEventRow {
-	const rootId = getFirstTagValue(
-		event.tags.filter((tag) => tag[0] === 'e'),
-		'e'
-	);
+	const rootId = parseRootIdFromEvent(event);
 	return {
 		id: event.id,
 		kind: event.kind,
@@ -216,9 +232,43 @@ function toEventRow(event: SignedNostrEvent, community: string): NostrEventRow {
 		createdAt: event.created_at,
 		community,
 		forumSlug: getForumSlug(event.tags),
-		rootId: rootId ?? event.id,
+		rootId,
 		content: event.content
 	};
+}
+
+async function upsertThreadHeadForReply(
+	db: NonNullable<ReturnType<typeof getDb>>,
+	input: {
+		community: string;
+		rootId: string;
+		replyCreatedAt: number;
+		replyForumSlug: string;
+		replyAuthor: string;
+	}
+): Promise<void> {
+	const existing = await db.threadHeads.get(input.rootId);
+	if (existing) {
+		await db.threadHeads.put({
+			...existing,
+			lastActivityAt: Math.max(existing.lastActivityAt, input.replyCreatedAt),
+			replyCount: existing.replyCount + 1
+		});
+		return;
+	}
+
+	const rootEvent = await db.events.get(input.rootId);
+	await db.threadHeads.put({
+		rootId: input.rootId,
+		community: input.community,
+		forumSlug: rootEvent?.forumSlug ?? input.replyForumSlug,
+		title:
+			rootEvent?.content.slice(0, 80) ||
+			`Thread ${input.rootId.slice(0, 8)}`,
+		author: rootEvent?.pubkey ?? input.replyAuthor,
+		lastActivityAt: input.replyCreatedAt,
+		replyCount: 1
+	});
 }
 
 function toReactionRow(event: SignedNostrEvent, community: string): ReactionRow {
@@ -339,6 +389,7 @@ function isValidSignedEvent(candidate: unknown): candidate is SignedNostrEvent {
 
 export interface WriteFlowService {
 	createThread(input: CreateThreadInput): Promise<WriteActionResult>;
+	createReply(input: CreateReplyInput): Promise<WriteActionResult>;
 	createReaction(input: CreateReactionInput): Promise<WriteActionResult>;
 	createReport(input: CreateReportInput): Promise<WriteActionResult>;
 	retryPendingWrite(input: RetryPendingWriteInput): Promise<WriteActionResult>;
@@ -452,6 +503,48 @@ export function createWriteFlowService(partialDeps: Partial<WriteFlowDeps> = {})
 						rootId: event.id
 					});
 					await db.threadHeads.put(buildThreadHead(event, input.community));
+				}
+			});
+		},
+
+		async createReply(input: CreateReplyInput): Promise<WriteActionResult> {
+			const forumSlug = (input.forumSlug ?? 'general').trim().toLowerCase() || 'general';
+			const rootId = input.threadId.trim();
+			const parentId = (input.replyToId?.trim() || rootId).trim();
+			const content = input.content.trim();
+			return performWrite({
+				community: input.community,
+				authorPubkey: input.authorPubkey,
+				relays: input.relays,
+				action: 'thread',
+				permission: 'canPost',
+				kind: 11,
+				targetId: parentId,
+				buildEvent: (createdAtSeconds) => ({
+					kind: 11,
+					pubkey: input.authorPubkey,
+					created_at: createdAtSeconds,
+					tags: [
+						['h', input.community],
+						['t', `forum:${forumSlug}`],
+						['e', rootId, '', 'root'],
+						...(parentId !== rootId ? [['e', parentId, '', 'reply'] as string[]] : [])
+					],
+					content
+				}),
+				optimisticInsert: async (db, event) => {
+					const row = toEventRow(event, input.community);
+					await db.events.put({
+						...row,
+						rootId
+					});
+					await upsertThreadHeadForReply(db, {
+						community: input.community,
+						rootId,
+						replyCreatedAt: event.created_at,
+						replyForumSlug: forumSlug,
+						replyAuthor: event.pubkey
+					});
 				}
 			});
 		},

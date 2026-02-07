@@ -1,10 +1,18 @@
-import type { PendingWriteStatus, ThreadHeadRow } from '$lib/data/db';
+import type { PendingWriteRow, PendingWriteStatus, ThreadHeadRow } from '$lib/data/db';
 
 export type ForumDashboardSort = 'latest' | 'active';
 export type ForumDashboardFilter = 'all' | 'pending' | 'failed';
 
 export interface ForumDashboardThread extends ThreadHeadRow {
 	writeStatus?: PendingWriteStatus;
+}
+
+export interface ThreadRetryCandidate {
+	eventId: string;
+	pendingId: number;
+	attemptCount: number;
+	updatedAt: number;
+	errorMessage?: string;
 }
 
 interface ComputeForumDashboardThreadsInput {
@@ -30,6 +38,18 @@ function matchesFilter(thread: ForumDashboardThread, filter: ForumDashboardFilte
 	return thread.writeStatus === 'failed';
 }
 
+function isMoreRecentPendingRow(
+	candidate: PendingWriteRow,
+	current: PendingWriteRow
+): boolean {
+	if (candidate.updatedAt !== current.updatedAt) {
+		return candidate.updatedAt > current.updatedAt;
+	}
+	const candidateId = candidate.id ?? Number.MAX_SAFE_INTEGER;
+	const currentId = current.id ?? Number.MAX_SAFE_INTEGER;
+	return candidateId < currentId;
+}
+
 export function computeForumDashboardThreads(
 	threads: ThreadHeadRow[],
 	writeStatusByEvent: Record<string, PendingWriteStatus>,
@@ -51,4 +71,32 @@ export function isSyncStateStale(
 ): boolean {
 	if (lastSyncAt === null) return false;
 	return nowMs - lastSyncAt > thresholdMs;
+}
+
+export function computeThreadRetryCandidates(
+	rows: PendingWriteRow[]
+): Record<string, ThreadRetryCandidate> {
+	const latestByEvent = new Map<string, PendingWriteRow>();
+
+	for (const row of rows) {
+		if (row.action !== 'thread') continue;
+		const existing = latestByEvent.get(row.eventId);
+		if (!existing || isMoreRecentPendingRow(row, existing)) {
+			latestByEvent.set(row.eventId, row);
+		}
+	}
+
+	const output: Record<string, ThreadRetryCandidate> = {};
+	for (const [eventId, row] of latestByEvent.entries()) {
+		if (row.status !== 'failed' || row.id === undefined) continue;
+		output[eventId] = {
+			eventId,
+			pendingId: row.id,
+			attemptCount: row.attemptCount,
+			updatedAt: row.updatedAt,
+			errorMessage: row.errorMessage
+		};
+	}
+
+	return output;
 }

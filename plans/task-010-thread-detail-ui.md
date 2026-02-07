@@ -8,6 +8,7 @@ Implement a state-of-the-art thread detail experience with clear hierarchy for r
 2. Integrate reaction/vote/report action bar.
 3. Visualize per-target pending/confirmed/failed write states.
 4. Keep post-focus route (`post_id`) highlight behavior.
+5. Provide reply composer for thread replies and reply-to-reply interactions.
 
 ## Out of scope
 1. Nested reply protocol changes.
@@ -54,11 +55,18 @@ Done
 5. Added thread-detail-specific unit tests:
    - `tests/thread-detail.view-model.test.ts`
    - verifies focus stability, pending/reaction/report status mapping, and failed retry visibility
+6. Added thread reply write path and UI:
+   - `src/lib/actions/writeFlow.ts`: `createReply(...)` with optimistic event + thread-head updates
+   - `src/lib/components/ThreadDetailView.svelte`: composer for thread reply and targeted reply-to-reply
+   - replies are persisted as `kind:11` with root `e` tag and optional reply `e` tag
+7. Added reply write-flow unit test:
+   - `tests/write-flow.actions.test.ts`
+   - verifies root linkage for replies and deterministic thread-head update
 
 ## Acceptance Criteria Check
 1. Thread detail keeps high readability under activity.
    - Pass: root/reply hierarchy and list-first layout implemented.
 2. Action outcomes are visible without page reload.
-   - Pass: action status text + status chips + toast feedback + retry buttons.
+   - Pass: action status text + status chips + toast feedback + retry buttons + reply composer.
 3. `pnpm test` and `pnpm check` pass.
-   - Pass: both commands successful.
+   - Pass: both commands successful after reply composer integration.

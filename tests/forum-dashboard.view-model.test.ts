@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
 	computeForumDashboardThreads,
+	computeThreadRetryCandidates,
 	isSyncStateStale
 } from '../src/lib/routes/forumDashboard';
-import type { PendingWriteStatus, ThreadHeadRow } from '../src/lib/data/db';
+import type { PendingWriteRow, PendingWriteStatus, ThreadHeadRow } from '../src/lib/data/db';
 
 function makeThread(
 	rootId: string,
@@ -84,5 +85,77 @@ describe('forum dashboard view model', () => {
 		expect(isSyncStateStale(now - 1_000, now, 5_000)).toBe(false);
 		expect(isSyncStateStale(now - 6_000, now, 5_000)).toBe(true);
 		expect(isSyncStateStale(null, now, 5_000)).toBe(false);
+	});
+
+	it('selects deterministic thread retry candidates from failed writes', () => {
+		const rows: PendingWriteRow[] = [
+			{
+				id: 1,
+				eventId: 'thread-a',
+				community: 'community-test',
+				kind: 11,
+				action: 'thread',
+				targetId: '',
+				author: 'a',
+				status: 'failed',
+				attemptCount: 1,
+				signedEvent: '{}',
+				errorMessage: 'timeout',
+				createdAt: 10,
+				updatedAt: 100
+			},
+			{
+				id: 2,
+				eventId: 'thread-a',
+				community: 'community-test',
+				kind: 11,
+				action: 'thread',
+				targetId: '',
+				author: 'a',
+				status: 'pending',
+				attemptCount: 2,
+				signedEvent: '{}',
+				createdAt: 11,
+				updatedAt: 120
+			},
+			{
+				id: 3,
+				eventId: 'thread-b',
+				community: 'community-test',
+				kind: 11,
+				action: 'thread',
+				targetId: '',
+				author: 'a',
+				status: 'failed',
+				attemptCount: 3,
+				signedEvent: '{}',
+				errorMessage: 'relay down',
+				createdAt: 12,
+				updatedAt: 130
+			},
+			{
+				id: 4,
+				eventId: 'thread-b',
+				community: 'community-test',
+				kind: 11,
+				action: 'thread',
+				targetId: '',
+				author: 'a',
+				status: 'failed',
+				attemptCount: 4,
+				signedEvent: '{}',
+				errorMessage: 'relay down',
+				createdAt: 13,
+				updatedAt: 130
+			}
+		];
+
+		const result = computeThreadRetryCandidates(rows);
+		expect(result['thread-a']).toBeUndefined();
+		expect(result['thread-b']).toMatchObject({
+			pendingId: 3,
+			attemptCount: 3,
+			errorMessage: 'relay down'
+		});
 	});
 });

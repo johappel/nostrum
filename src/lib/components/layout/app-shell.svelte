@@ -13,11 +13,11 @@
 		RefreshCw,
 		Send,
 		Shield,
-		Users,
-		Wifi,
-		WifiOff
+		Users
 	} from '@lucide/svelte';
+	import SyncFeedbackBanner from '$lib/components/sync/SyncFeedbackBanner.svelte';
 	import { ThemeToggle } from '$lib/components/ui';
+	import { summarizeSyncFeedback } from '$lib/routes/syncFeedback';
 	import {
 		createCommunityStore,
 		createPendingWritesStore,
@@ -67,6 +67,7 @@
 	let panels = $state<ShellPanelsState>(
 		getDefaultShellPanelsState('desktop', { isForumRoute: false })
 	);
+	let nowMs = $state(Date.now());
 
 	let previousViewport: ShellViewport | null = null;
 	let previousIsForumRoute: boolean | null = null;
@@ -80,7 +81,12 @@
 	const pendingCount = $derived($pendingWritesStore.filter((row) => row.status === 'pending').length);
 	const failedCount = $derived($pendingWritesStore.filter((row) => row.status === 'failed').length);
 	const relayCount = $derived($syncStateStore.relays.length);
-	const hasRelaySync = $derived(relayCount > 0);
+	const syncFeedback = $derived(
+		summarizeSyncFeedback({
+			syncState: $syncStateStore,
+			nowMs
+		})
+	);
 	const lastSyncLabel = $derived(
 		$syncStateStore.lastSyncAt ? new Date($syncStateStore.lastSyncAt).toLocaleString() : 'n/a'
 	);
@@ -146,8 +152,12 @@
 	onMount(() => {
 		updateViewportFromWindow();
 		window.addEventListener('resize', updateViewportFromWindow);
+		const intervalId = window.setInterval(() => {
+			nowMs = Date.now();
+		}, 30_000);
 		return () => {
 			window.removeEventListener('resize', updateViewportFromWindow);
+			window.clearInterval(intervalId);
 		};
 	});
 </script>
@@ -242,6 +252,7 @@
 		<h2>Community Kontext</h2>
 		<p>Mitglieder, Sync und Route-Meta</p>
 	</div>
+	<SyncFeedbackBanner view={syncFeedback} />
 
 	{#if !forumContext.communityId}
 		<p class="shell-muted">Hub-Ansicht: Community auswaehlen, um Member- und Thread-Kontext zu laden.</p>
@@ -350,18 +361,9 @@
 		</nav>
 
 		<div class="app-topbar-cluster app-topbar-actions">
-			<span class="shell-sync-pill">
-				{#if hasRelaySync}
-					<Wifi size={iconSize} />
-				{:else}
-					<WifiOff size={iconSize} />
-				{/if}
-				{#if hasRelaySync}
-					relay synced
-				{:else}
-					no relay state
-				{/if}
-			</span>
+			<div class="shell-sync-pill">
+				<SyncFeedbackBanner view={syncFeedback} compact />
+			</div>
 
 			{#if forumContext.communityId}
 				<a class="ui-button ui-button-primary" href={`/forums/${forumContext.communityId}#new-thread`}>
