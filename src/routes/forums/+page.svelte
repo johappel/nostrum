@@ -1,6 +1,11 @@
-﻿<svelte:head>
-  <title>Forums</title>
+<svelte:head>
+	<title>Forums</title>
 </svelte:head>
 
 <h1>Forums</h1>
-<p>Liste aller Foren.</p>
+<p>Startpunkte fuer Communities.</p>
+
+<ul>
+	<li><a href="/forums/demo">Demo-Community</a></li>
+</ul>
+

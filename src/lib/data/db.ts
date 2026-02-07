@@ -106,16 +106,7 @@ export async function ensureDemoData(community: string): Promise<void> {
 	const rootId = `${community}-thread-welcome`;
 	const replyId = `${community}-reply-1`;
 
-	await db.transaction(
-		'rw',
-		db.sections,
-		db.lists,
-		db.events,
-		db.threadHeads,
-		db.reactions,
-		db.labels,
-		db.syncCursor,
-		async () => {
+	await db.transaction('rw', db.tables, async () => {
 			await db.sections.bulkAdd([
 				{
 					community,
@@ -209,7 +200,5 @@ export async function ensureDemoData(community: string): Promise<void> {
 					updatedAt: now
 				}
 			]);
-		}
-	);
+	});
 }
-
