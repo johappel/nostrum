@@ -34,5 +34,19 @@ Implement and verify permission evaluation aligned with Communikeys list-based a
 3. No hidden implicit fallback paths.
 
 ## Status
-Planned
+Done
 
+## Result
+1. Added pure permission module:
+   - `src/lib/permissions/evaluate.ts`
+   - `src/lib/permissions/index.ts`
+2. Integrated store with pure evaluator:
+   - `src/lib/stores/permissions.ts`
+3. Added unit tests:
+   - `tests/permissions.engine.test.ts`
+   - `tests/permissions.store.test.ts`
+4. Added async store test helper:
+   - `tests/helpers/store.ts`
+5. Validation:
+   - `pnpm test` passes
+   - `pnpm check` passes
