@@ -62,6 +62,9 @@ Done
 7. Added reply write-flow unit test:
    - `tests/write-flow.actions.test.ts`
    - verifies root linkage for replies and deterministic thread-head update
+8. Follow-up UX parity for reply/create placement:
+   - `src/routes/forums/[id]/+page.svelte`
+   - forum feed now mirrors thread behavior: primary CTA button first, composer below existing thread list
 
 ## Acceptance Criteria Check
 1. Thread detail keeps high readability under activity.

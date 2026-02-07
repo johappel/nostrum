@@ -259,28 +259,8 @@
 		</div>
 	</header>
 
-	<section class="composer-card" id="new-thread">
-		<div class="composer-head">
-			<h2>Neuer Thread</h2>
-		</div>
-		<form onsubmit={submitThread}>
-			<label>
-				Titel (optional)
-				<input type="text" bind:value={newThreadTitle} maxlength="120" />
-			</label>
-			<label>
-				Text
-				<textarea bind:value={newThreadContent} rows="5" required></textarea>
-			</label>
-			<div class="composer-actions">
-				<button type="submit" class="ui-button ui-button-primary" disabled={threadSubmitting}>
-					{threadSubmitting ? 'Speichert...' : 'Thread erstellen'}
-				</button>
-				{#if threadSubmitStatus}
-					<p>{threadSubmitStatus}</p>
-				{/if}
-			</div>
-		</form>
+	<section class="dashboard-actions">
+		<a class="ui-button" href="#new-thread">Thread erstellen</a>
 	</section>
 
 	<section class="feed-controls">
@@ -356,6 +336,30 @@
 			</ul>
 		{/if}
 	</section>
+
+	<section class="composer-card" id="new-thread">
+		<div class="composer-head">
+			<h2>Neuen Thread erstellen</h2>
+		</div>
+		<form onsubmit={submitThread}>
+			<label>
+				Titel (optional)
+				<input type="text" bind:value={newThreadTitle} maxlength="120" />
+			</label>
+			<label>
+				Text
+				<textarea bind:value={newThreadContent} rows="5" required></textarea>
+			</label>
+			<div class="composer-actions">
+				<button type="submit" class="ui-button ui-button-primary" disabled={threadSubmitting}>
+					{threadSubmitting ? 'Speichert...' : 'Thread erstellen'}
+				</button>
+				{#if threadSubmitStatus}
+					<p>{threadSubmitStatus}</p>
+				{/if}
+			</div>
+		</form>
+	</section>
 </section>
 
 <style>
@@ -388,6 +392,11 @@
 		flex-wrap: wrap;
 		gap: 0.4rem;
 		justify-content: flex-end;
+	}
+
+	.dashboard-actions {
+		display: flex;
+		justify-content: flex-start;
 	}
 
 	.dashboard-alert {
