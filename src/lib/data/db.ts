@@ -38,7 +38,9 @@ export interface ThreadHeadRow {
 }
 
 export interface ReactionRow {
-	id?: number;
+	id: string;
+	eventId: string;
+	community: string;
 	targetId: string;
 	author: string;
 	value: string;
@@ -46,7 +48,9 @@ export interface ReactionRow {
 }
 
 export interface LabelRow {
-	id?: number;
+	id: string;
+	eventId: string;
+	community: string;
 	targetId: string;
 	label: string;
 	reason?: string;
@@ -68,8 +72,8 @@ class NostrumDb extends Dexie {
 	sections!: Table<SectionRow, number>;
 	lists!: Table<ListRow, number>;
 	threadHeads!: Table<ThreadHeadRow, string>;
-	reactions!: Table<ReactionRow, number>;
-	labels!: Table<LabelRow, number>;
+	reactions!: Table<ReactionRow, string>;
+	labels!: Table<LabelRow, string>;
 	syncCursor!: Table<SyncCursorRow, number>;
 
 	constructor() {
@@ -81,6 +85,15 @@ class NostrumDb extends Dexie {
 			threadHeads: 'rootId, community, forumSlug, lastActivityAt, [community+forumSlug+lastActivityAt]',
 			reactions: '++id, targetId, author, value, createdAt, [targetId+author]',
 			labels: '++id, targetId, label, reason, author, createdAt, [targetId+label+createdAt]',
+			syncCursor: '++id, relay, community, stream, cursor, updatedAt, [relay+community+stream]'
+		});
+		this.version(2).stores({
+			events: 'id, kind, pubkey, createdAt, community, forumSlug, rootId, [community+kind+createdAt], [community+rootId+createdAt]',
+			sections: '++id, community, section, [community+section]',
+			lists: '++id, community, dTag, [community+dTag], updatedAt',
+			threadHeads: 'rootId, community, forumSlug, lastActivityAt, [community+forumSlug+lastActivityAt]',
+			reactions: 'id, eventId, community, targetId, author, value, createdAt, [targetId+author], [community+targetId]',
+			labels: 'id, eventId, community, targetId, label, reason, author, createdAt, [targetId+label+createdAt], [community+targetId]',
 			syncCursor: '++id, relay, community, stream, cursor, updatedAt, [relay+community+stream]'
 		});
 	}
@@ -181,12 +194,18 @@ export async function ensureDemoData(community: string): Promise<void> {
 
 		await db.reactions.bulkAdd([
 			{
+				id: `${rootId}:npub_demo_user_1:heart`,
+				eventId: `${rootId}:reaction:1`,
+				community,
 				targetId: rootId,
 				author: 'npub_demo_user_1',
 				value: ':heart:',
 				createdAt: now - 4_000
 			},
 			{
+				id: `${rootId}:npub_demo_mod_1:plus`,
+				eventId: `${rootId}:reaction:2`,
+				community,
 				targetId: rootId,
 				author: 'npub_demo_mod_1',
 				value: '+',

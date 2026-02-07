@@ -34,5 +34,31 @@ Build relay sync ingestion with deterministic cursor updates and conflict handli
 3. Partial relay failure leaves local cache usable.
 
 ## Status
-Planned
+Done
 
+## Result
+1. Added sync module:
+   - `src/lib/sync/types.ts`
+   - `src/lib/sync/normalize.ts`
+   - `src/lib/sync/service.ts`
+   - `src/lib/sync/index.ts`
+2. Implemented incremental ingestion with `sync_cursor` support:
+   - per relay + community + stream cursor read/update
+   - transactionally persisted events + derived tables
+3. Implemented id-based dedupe and projection persistence:
+   - event dedupe by `event.id`
+   - thread head rebuild from persisted `kind:11`
+   - reaction/label upserts from normalized events
+4. Added cursor utility behaviors:
+   - `getCursor`
+   - `setCursor`
+   - `resetCursorsForCommunity`
+5. Added sync unit tests:
+   - `tests/sync.service.test.ts`
+   - verifies multi-relay dedupe
+   - verifies cursor update only on successful commit
+   - verifies failed batch atomicity
+   - verifies replay determinism from reset cursor
+6. Validation:
+   - `pnpm test` passes
+   - `pnpm check` passes
