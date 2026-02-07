@@ -33,4 +33,37 @@ Implement the responsive application shell for forum routes with clear navigatio
 3. `pnpm test` and `pnpm check` pass.
 
 ## Status
-Planned
+Done
+
+## Result
+1. Added shared app shell components:
+   - `src/lib/components/layout/app-shell.svelte`
+   - `src/lib/components/layout/shellState.ts`
+   - `src/lib/components/layout/index.ts`
+2. Integrated shell into root layout:
+   - `src/routes/+layout.svelte`
+   - uses route pathname to drive forum-aware shell context
+3. Implemented responsive shell behavior:
+   - desktop: left + right sidebars as persistent panels
+   - tablet/mobile: sidebars as drawers with backdrop
+   - deterministic panel defaults per viewport + route context
+4. Added topbar, sidebars, and footer context surfaces:
+   - topbar: community context, relay sync indicator, quick actions, theme toggle
+   - left sidebar: forum navigation and pending/failed quick status
+   - right sidebar: member counts, sync metadata, route metadata
+   - footer: relay + sync summary
+5. Added app-shell styling:
+   - `src/app.css` expanded with shell layout, drawer, and responsive rules
+6. Added shell tests:
+   - `tests/app-shell.state.test.ts`
+   - `tests/app-shell.structure.test.ts`
+7. Minor route integration update:
+   - `src/routes/forums/[id]/+page.svelte` adds `id="new-thread"` anchor for topbar quick action
+
+## Acceptance Criteria Check
+1. Layout is usable on desktop and mobile.
+   - Pass: desktop sidebars and mobile drawers implemented with responsive breakpoints.
+2. Navigation context is always visible or one tap away.
+   - Pass: topbar always visible; sidebars persistent on desktop and toggleable on smaller viewports.
+3. `pnpm test` and `pnpm check` pass.
+   - Pass: both commands pass after implementation.

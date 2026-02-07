@@ -5,6 +5,7 @@
 		createSimplePoolPublisher,
 		createWriteFlowService
 	} from '$lib/actions';
+	import { notifyError, notifyWriteStatus } from '$lib/components/ui';
 	import { createThreadRouteStores } from '$lib/routes/contracts';
 	import { DEFAULT_ROUTE_USER_PUBKEY } from '$lib/routes/contracts';
 	import { ensureDemoData } from '$lib/data/db';
@@ -71,9 +72,11 @@
 
 		if (!result.ok) {
 			actionStatus = `Reaktion fehlgeschlagen: ${result.message}`;
+			notifyError('Reaktion fehlgeschlagen', result.message);
 			return;
 		}
 
+		notifyWriteStatus('reaction', result.status);
 		actionStatus =
 			result.status === 'confirmed'
 				? 'Reaktion bestaetigt.'
@@ -94,10 +97,12 @@
 
 		if (!result.ok) {
 			actionStatus = `Report fehlgeschlagen: ${result.message}`;
+			notifyError('Report fehlgeschlagen', result.message);
 			return;
 		}
 
 		reportReason = '';
+		notifyWriteStatus('report', result.status);
 		actionStatus =
 			result.status === 'confirmed'
 				? 'Report bestaetigt.'

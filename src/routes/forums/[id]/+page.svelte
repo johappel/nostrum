@@ -12,6 +12,7 @@
 		createForumRouteStores,
 		DEFAULT_ROUTE_USER_PUBKEY
 	} from '$lib/routes/contracts';
+	import { notifyError, notifySuccess, notifyWriteStatus } from '$lib/components/ui';
 	import { createWriteStatusByEventStore } from '$lib/stores';
 	import { createRelaySyncFetcher, syncCommunity } from '$lib/sync';
 	import type { PageData } from './$types';
@@ -56,9 +57,11 @@
 			});
 			importedWpUsers = members.length;
 			wpSyncStatus = 'synced';
+			notifySuccess('WP-Mitglieder synchronisiert', `${members.length} Mitglieder importiert.`);
 		} catch (error) {
 			console.error('WP member sync failed', error);
 			wpSyncStatus = 'failed';
+			notifyError('WP-Mitgliedersync fehlgeschlagen');
 		}
 
 		try {
@@ -70,9 +73,11 @@
 			});
 			relayFetchedEvents = result.fetchedEvents;
 			relaySyncStatus = 'synced';
+			notifySuccess('Relay-Sync erfolgreich', `${result.fetchedEvents} Events geladen.`);
 		} catch (error) {
 			console.error('Relay sync failed', error);
 			relaySyncStatus = 'failed';
+			notifyError('Relay-Sync fehlgeschlagen');
 		}
 	});
 
@@ -105,11 +110,13 @@
 
 		if (!result.ok) {
 			threadSubmitStatus = `Thread nicht erstellt: ${result.message}`;
+			notifyError('Thread nicht erstellt', result.message);
 			return;
 		}
 
 		newThreadTitle = '';
 		newThreadContent = '';
+		notifyWriteStatus('thread', result.status);
 		threadSubmitStatus =
 			result.status === 'confirmed'
 				? 'Thread erstellt und bestaetigt.'
@@ -144,7 +151,7 @@
 	<p>Relay-Sync fehlgeschlagen.</p>
 {/if}
 
-<h2>Neuer Thread</h2>
+<h2 id="new-thread">Neuer Thread</h2>
 <form onsubmit={submitThread}>
 	<label>
 		Titel (optional)
@@ -174,7 +181,7 @@
 					by {thread.author} | replies {thread.replyCount}
 				</small>
 				{#if $writeStatusStore[thread.rootId]}
-					<small class={`write-status status-${$writeStatusStore[thread.rootId]}`}>
+					<small class={`status-pill status-pill-${$writeStatusStore[thread.rootId]}`}>
 						{statusLabel($writeStatusStore[thread.rootId])}
 					</small>
 				{/if}
@@ -202,20 +209,7 @@
 		padding: 0.4rem 0.5rem;
 	}
 
-	.write-status {
+	.status-pill {
 		margin-left: 0.5rem;
-		font-weight: 600;
-	}
-
-	.status-pending {
-		color: #856404;
-	}
-
-	.status-confirmed {
-		color: #155724;
-	}
-
-	.status-failed {
-		color: #721c24;
 	}
 </style>

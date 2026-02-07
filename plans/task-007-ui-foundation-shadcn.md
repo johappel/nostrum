@@ -41,4 +41,46 @@ Establish a reusable UI foundation with shadcn components/blocks, unified iconog
 5. `pnpm test` and `pnpm check` pass.
 
 ## Status
-Planned
+Done
+
+## Result
+1. Added UI foundation dependencies:
+   - `@lucide/svelte`
+   - `svelte-sonner`
+   - `tailwindcss`
+   - `@tailwindcss/vite`
+2. Enabled Tailwind 4 via Vite plugin:
+   - `vite.config.ts`
+3. Added global theme token system and styling baseline:
+   - `src/app.css`
+   - includes `:root`, `.dark`, and `@theme inline` variable mapping
+4. Added theme mode engine (`light/dark/auto`):
+   - `src/lib/stores/theme.ts`
+   - localStorage persistence (`nostrum-theme-mode`)
+   - system preference handling for `auto`
+5. Added foundation UI components:
+   - `src/lib/components/ui/theme-toggle.svelte`
+   - `src/lib/components/ui/toaster.svelte`
+   - `src/lib/components/ui/toast.ts`
+   - `src/lib/components/ui/index.ts`
+6. Wired global layout and early theme boot:
+   - `src/routes/+layout.svelte`
+   - `src/app.html`
+7. Integrated toast feedback in write/sync flows:
+   - `src/routes/forums/[id]/+page.svelte`
+   - `src/lib/components/ThreadDetailView.svelte`
+8. Added tests:
+   - `tests/theme.store.test.ts`
+   - `tests/toast.contract.test.ts`
+
+## Acceptance Criteria Check
+1. UI primitives are reusable across forum and thread routes.
+   - Pass: theme toggle, toaster, and toast helper are centralized in `src/lib/components/ui/*`.
+2. One icon library is used consistently (`@lucide/svelte`).
+   - Pass: theme toggle uses `@lucide/svelte`.
+3. Theme mode can be switched between `light/dark/auto` without page breakage.
+   - Pass: implemented via store + early boot script + validated by `pnpm check`.
+4. Toasts are centralized through `sonner`.
+   - Pass: implemented via `svelte-sonner` with shared helper functions.
+5. `pnpm test` and `pnpm check` pass.
+   - Pass: both commands successful.
