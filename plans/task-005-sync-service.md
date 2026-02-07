@@ -69,3 +69,6 @@ Done
 2. Added local mock endpoint for development:
    - `src/routes/api/mock-wp-users/+server.ts`
    - fixture: `src/lib/fixtures/mockWpUsers.ts`
+3. Added configurable proxy endpoint for dev/prod parity:
+   - `src/routes/api/wp-members/+server.ts`
+   - source endpoint via `WP_MEMBERS_ENDPOINT` (ENV), fallback to mock if unset

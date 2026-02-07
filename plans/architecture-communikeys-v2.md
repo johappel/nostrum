@@ -230,7 +230,9 @@ SHOULD:
   - liefert `{id, display_name, nostr_pubkey_hex}` fuer freigeschaltete Mitglieder
   - normale `/wp/v2/users` Responses liefern typischerweise nicht alle benoetigten Meta-Felder oeffentlich
 - Dev-Setup im Client:
-  - lokaler Mock-Endpoint: `/api/mock-wp-users`
+  - lokaler Provisioning-Endpoint: `/api/wp-members`
+  - `WP_MEMBERS_ENDPOINT` (ENV) schaltet auf echten WP-Endpoint um
+  - wenn `WP_MEMBERS_ENDPOINT` nicht gesetzt ist, liefert `/api/wp-members` Mock-Daten aus `/api/mock-wp-users`
   - synchronisiert Liste `d=General` in Dexie beim Oeffnen von `/forums/:id`
   - `preserveExisting=true`, damit Demo-/bestehende Mitglieder nicht ueberschrieben werden
 

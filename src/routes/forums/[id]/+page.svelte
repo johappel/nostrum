@@ -24,7 +24,7 @@
 		try {
 			const members = await syncGeneralListFromWpEndpoint({
 				community: data.forumId,
-				endpoint: '/api/mock-wp-users',
+				endpoint: '/api/wp-members',
 				preserveExisting: true
 			});
 			importedWpUsers = members.length;
