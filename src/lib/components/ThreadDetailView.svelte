@@ -3,11 +3,20 @@
 	import {
 		createBrowserNip07Signer,
 		createSimplePoolPublisher,
-		createWriteFlowService
+		createWriteFlowService,
+		type WriteActionResult
 	} from '$lib/actions';
+	import ThreadActionBar from '$lib/components/thread/ThreadActionBar.svelte';
 	import { notifyError, notifyWriteStatus } from '$lib/components/ui';
+	import type { PendingWriteRow } from '$lib/data/db';
 	import { createThreadRouteStores } from '$lib/routes/contracts';
 	import { DEFAULT_ROUTE_USER_PUBKEY } from '$lib/routes/contracts';
+	import {
+		buildThreadTimeline,
+		getFailedRowsForTarget,
+		isMissingFocusPost,
+		mapTargetWriteStates
+	} from '$lib/routes/threadDetailView';
 	import { ensureDemoData } from '$lib/data/db';
 	import { createPendingWritesStore } from '$lib/stores';
 
@@ -27,10 +36,15 @@
 	let permissionsStore = $state(createThreadRouteStores('', '').permissionsStore);
 	let pendingWritesStore = $state(createPendingWritesStore(''));
 	let writeService = $state(createWriteFlowService());
-	let reactionValue = $state(':heart:');
-	let reportReason = $state('');
 	let actionStatus = $state('');
 	let actionBusy = $state(false);
+
+	const timeline = $derived(buildThreadTimeline($threadStore.root, $threadStore.replies, postId));
+	const missingFocus = $derived(isMissingFocusPost(timeline, postId));
+	const targetWriteStates = $derived(mapTargetWriteStates($pendingWritesStore));
+	const activeTargetId = $derived(postId ?? $threadStore.root?.id ?? '');
+	const rootItem = $derived(timeline.find((item) => item.isRoot) ?? null);
+	const replyItems = $derived(timeline.filter((item) => !item.isRoot));
 
 	$effect(() => {
 		const stores = createThreadRouteStores(forumId, threadId);
@@ -50,63 +64,101 @@
 		});
 	});
 
-	const isFocused = (eventId: string): boolean => postId !== null && postId === eventId;
-
-	function pendingForTarget(targetId: string) {
-		return $pendingWritesStore
-			.filter((row) => row.targetId === targetId)
-			.sort((a, b) => b.updatedAt - a.updatedAt);
+	function toTimestampMs(value: number): number {
+		return value > 2_000_000_000 ? value : value * 1000;
 	}
 
-	async function sendReaction(targetId: string): Promise<void> {
+	function formatCreatedAt(value: number): string {
+		return new Date(toTimestampMs(value)).toLocaleString();
+	}
+
+	function statusCounts(targetId: string): { pending: number; failed: number; confirmed: number } {
+		const state = targetWriteStates[targetId];
+		if (!state) return { pending: 0, failed: 0, confirmed: 0 };
+		return {
+			pending: state.pendingCount,
+			failed: state.failedCount,
+			confirmed: state.confirmedCount
+		};
+	}
+
+	function failedRows(targetId: string): PendingWriteRow[] {
+		return getFailedRowsForTarget(targetWriteStates, targetId);
+	}
+
+	async function handleWriteResult(action: 'reaction' | 'report', result: WriteActionResult): Promise<void> {
+		if (!result.ok) {
+			const label = action === 'reaction' ? 'Reaktion' : 'Report';
+			actionStatus = `${label} fehlgeschlagen: ${result.message}`;
+			notifyError(`${label} fehlgeschlagen`, result.message);
+			return;
+		}
+
+		notifyWriteStatus(action, result.status);
+		actionStatus =
+			action === 'reaction'
+				? result.status === 'confirmed'
+					? 'Reaktion bestaetigt.'
+					: 'Reaktion lokal gespeichert, Relay-Publish fehlgeschlagen.'
+				: result.status === 'confirmed'
+					? 'Report bestaetigt.'
+					: 'Report lokal gespeichert, Relay-Publish fehlgeschlagen.';
+	}
+
+	async function sendReaction(input: { targetId: string; value: string }): Promise<void> {
 		actionBusy = true;
 		actionStatus = '';
 		const result = await writeService.createReaction({
 			community: forumId,
 			authorPubkey: DEFAULT_ROUTE_USER_PUBKEY,
 			relays: [relayUrl],
-			targetId,
-			value: reactionValue
+			targetId: input.targetId,
+			value: input.value
 		});
 		actionBusy = false;
-
-		if (!result.ok) {
-			actionStatus = `Reaktion fehlgeschlagen: ${result.message}`;
-			notifyError('Reaktion fehlgeschlagen', result.message);
-			return;
-		}
-
-		notifyWriteStatus('reaction', result.status);
-		actionStatus =
-			result.status === 'confirmed'
-				? 'Reaktion bestaetigt.'
-				: 'Reaktion lokal gespeichert, Relay-Publish fehlgeschlagen.';
+		await handleWriteResult('reaction', result);
 	}
 
-	async function sendReport(targetId: string): Promise<void> {
+	async function sendReport(input: { targetId: string; reason: string }): Promise<void> {
 		actionBusy = true;
 		actionStatus = '';
 		const result = await writeService.createReport({
 			community: forumId,
 			authorPubkey: DEFAULT_ROUTE_USER_PUBKEY,
 			relays: [relayUrl],
-			targetId,
-			reason: reportReason
+			targetId: input.targetId,
+			reason: input.reason
+		});
+		actionBusy = false;
+		await handleWriteResult('report', result);
+	}
+
+	async function retryFailedWrite(row: PendingWriteRow): Promise<void> {
+		if (!row.id) {
+			notifyError('Retry nicht moeglich', 'Pending write without persistent id.');
+			return;
+		}
+
+		actionBusy = true;
+		const result = await writeService.retryPendingWrite({
+			pendingId: row.id,
+			relays: [relayUrl]
 		});
 		actionBusy = false;
 
 		if (!result.ok) {
-			actionStatus = `Report fehlgeschlagen: ${result.message}`;
-			notifyError('Report fehlgeschlagen', result.message);
+			notifyError('Retry fehlgeschlagen', result.message);
+			actionStatus = `Retry fehlgeschlagen: ${result.message}`;
 			return;
 		}
 
-		reportReason = '';
-		notifyWriteStatus('report', result.status);
+		if (row.action === 'reaction' || row.action === 'report') {
+			notifyWriteStatus(row.action, result.status);
+		}
 		actionStatus =
 			result.status === 'confirmed'
-				? 'Report bestaetigt.'
-				: 'Report lokal gespeichert, Relay-Publish fehlgeschlagen.';
+				? 'Retry erfolgreich, Event bestaetigt.'
+				: 'Retry erneut fehlgeschlagen.';
 	}
 </script>
 
@@ -120,96 +172,195 @@
 {#if !$threadStore.root}
 	<p>Thread nicht gefunden.</p>
 {:else}
-	<h2 class:selected={isFocused($threadStore.root.id)} id={$threadStore.root.id}>
-		{$threadStore.root.content}
-	</h2>
-	<p>Autor: {$threadStore.root.pubkey}</p>
-	{#if postId !== null && !isFocused($threadStore.root.id) && !$threadStore.replies.some((r) => r.id === postId)}
-		<p>Hinweis: Beitrag `{postId}` nicht gefunden.</p>
-	{/if}
-	<p>
-		Berechtigungen:
-		post={$permissionsStore.canPost ? 'yes' : 'no'},
-		react={$permissionsStore.canReact ? 'yes' : 'no'},
-		moderate={$permissionsStore.canModerate ? 'yes' : 'no'}
-	</p>
+	<section class="thread-detail">
+		{#if missingFocus}
+			<p class="focus-missing">Hinweis: Beitrag `{postId}` nicht gefunden.</p>
+		{/if}
 
-	<h3>Reaktionen</h3>
-	<label>
-		Reaktion/Vote
-		<input bind:value={reactionValue} maxlength="24" />
-	</label>
-	<button onclick={() => $threadStore.root && sendReaction($threadStore.root.id)} disabled={actionBusy}>
-		Reaktion senden
-	</button>
+		{#if rootItem}
+			<article
+				class={`post-card post-root ${rootItem.isFocused ? 'post-focused' : ''}`}
+				id={rootItem.id}
+			>
+				<header>
+					<h2>{rootItem.content}</h2>
+					<div class="meta-row">
+						<span>Autor: {rootItem.author}</span>
+						<span>{formatCreatedAt(rootItem.createdAt)}</span>
+					</div>
+					<div class="meta-row">
+						<span>Berechtigungen:</span>
+						<span class="status-pill status-pill-confirmed">post {$permissionsStore.canPost ? 'yes' : 'no'}</span>
+						<span class="status-pill status-pill-confirmed">react {$permissionsStore.canReact ? 'yes' : 'no'}</span>
+						<span class="status-pill status-pill-confirmed">moderate {$permissionsStore.canModerate ? 'yes' : 'no'}</span>
+					</div>
+				</header>
 
-	{#if $threadStore.reactionsByTarget[$threadStore.root.id]}
-		<ul>
-			{#each Object.entries($threadStore.reactionsByTarget[$threadStore.root.id]) as [value, count]}
-				<li>{value}: {count}</li>
-			{/each}
-		</ul>
-	{:else}
-		<p>Keine Reaktionen.</p>
-	{/if}
+				<ThreadActionBar
+					targetId={activeTargetId}
+					reactions={$threadStore.reactionsByTarget[activeTargetId] ?? {}}
+					counts={statusCounts(activeTargetId)}
+					canReact={$permissionsStore.canReact}
+					canModerate={$permissionsStore.canModerate}
+					busy={actionBusy}
+					onReact={sendReaction}
+					onReport={sendReport}
+				/>
 
-	<h3>Report</h3>
-	<label>
-		Grund (optional)
-		<input bind:value={reportReason} maxlength="120" />
-	</label>
-	<button onclick={() => $threadStore.root && sendReport($threadStore.root.id)} disabled={actionBusy}>
-		Report senden
-	</button>
+				{#if failedRows(activeTargetId).length > 0}
+					<div class="retry-group">
+						<p>Failed writes (retry):</p>
+						<ul>
+							{#each failedRows(activeTargetId) as row}
+								<li>
+									<button
+										class="ui-button"
+										type="button"
+										disabled={actionBusy}
+										onclick={() => retryFailedWrite(row)}
+									>
+										Retry {row.action} (attempts: {row.attemptCount})
+									</button>
+								</li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
+			</article>
+		{/if}
 
-	{#if pendingForTarget($threadStore.root.id).length > 0}
-		<p>Write-Status:</p>
-		<ul>
-			{#each pendingForTarget($threadStore.root.id) as pending}
-				<li>{pending.action}: {pending.status} (attempts: {pending.attemptCount})</li>
-			{/each}
-		</ul>
-	{/if}
-
+		<section class="reply-section">
+			<h3>Antworten ({replyItems.length})</h3>
+			{#if replyItems.length === 0}
+				<p>Keine Antworten.</p>
+			{:else}
+				<ul class="reply-list">
+					{#each replyItems as item}
+						<li>
+							<article class={`post-card ${item.isFocused ? 'post-focused' : ''}`} id={item.id}>
+								<header>
+									<a href={`/forums/${forumId}/${threadId}/${item.id}`}>{item.content}</a>
+								</header>
+								<div class="meta-row">
+									<span>{item.author}</span>
+									<span>{formatCreatedAt(item.createdAt)}</span>
+								</div>
+								<div class="meta-row">
+									{#if statusCounts(item.id).pending > 0}
+										<span class="status-pill status-pill-pending">pending {statusCounts(item.id).pending}</span>
+									{/if}
+									{#if statusCounts(item.id).failed > 0}
+										<span class="status-pill status-pill-failed">failed {statusCounts(item.id).failed}</span>
+									{/if}
+								</div>
+								{#if failedRows(item.id).length > 0}
+									<div class="retry-group">
+										{#each failedRows(item.id) as row}
+											<button
+												class="ui-button"
+												type="button"
+												disabled={actionBusy}
+												onclick={() => retryFailedWrite(row)}
+											>
+												Retry {row.action}
+											</button>
+										{/each}
+									</div>
+								{/if}
+							</article>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</section>
+	</section>
 	{#if actionStatus}
-		<p>{actionStatus}</p>
-	{/if}
-
-	<h3>Antworten ({$threadStore.replies.length})</h3>
-	{#if $threadStore.replies.length === 0}
-		<p>Keine Antworten.</p>
-	{:else}
-		<ul>
-			{#each $threadStore.replies as reply}
-				<li class:selected={isFocused(reply.id)} id={reply.id}>
-					<a href={`/forums/${forumId}/${threadId}/${reply.id}`}>{reply.content}</a>
-					<small>({reply.pubkey})</small>
-				</li>
-			{/each}
-		</ul>
+		<p class="action-status">{actionStatus}</p>
 	{/if}
 {/if}
 
 <style>
-	label {
-		display: block;
-		margin: 0.35rem 0;
+	.thread-detail {
+		display: grid;
+		gap: 0.9rem;
 	}
 
-	input {
-		font: inherit;
-		padding: 0.35rem 0.45rem;
-		margin-left: 0.35rem;
+	.focus-missing {
+		margin: 0;
+		padding: 0.45rem 0.6rem;
+		border-radius: var(--radius);
+		border: 1px solid color-mix(in oklab, var(--destructive) 45%, transparent);
+		background: color-mix(in oklab, var(--destructive) 10%, transparent);
+		color: color-mix(in oklab, var(--destructive) 80%, black);
+		font-size: 0.88rem;
 	}
 
-	button {
-		margin: 0.25rem 0 0.75rem;
+	.post-card {
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		padding: 0.75rem 0.85rem;
+		background: color-mix(in oklab, var(--card) 92%, transparent);
 	}
 
-	.selected {
-		outline: 2px solid #1f7a8c;
-		padding: 0.15rem 0.3rem;
-		border-radius: 0.25rem;
-		background: #eef8fa;
+	.post-root h2 {
+		margin: 0;
+		font-size: 1.05rem;
+		line-height: 1.35;
+	}
+
+	.post-focused {
+		outline: 2px solid color-mix(in oklab, var(--ring) 80%, transparent);
+		outline-offset: 1px;
+	}
+
+	.meta-row {
+		display: flex;
+		gap: 0.45rem;
+		flex-wrap: wrap;
+		color: var(--muted-foreground);
+		font-size: 0.84rem;
+		margin-top: 0.4rem;
+	}
+
+	.reply-section h3 {
+		margin: 0;
+		font-size: 1rem;
+	}
+
+	.reply-list {
+		list-style: none;
+		margin: 0.5rem 0 0;
+		padding: 0;
+		display: grid;
+		gap: 0.55rem;
+	}
+
+	.reply-list a {
+		text-decoration: none;
+		font-weight: 550;
+	}
+
+	.retry-group {
+		margin-top: 0.6rem;
+	}
+
+	.retry-group p {
+		margin: 0 0 0.4rem;
+		font-size: 0.82rem;
+		color: var(--muted-foreground);
+	}
+
+	.retry-group ul {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: grid;
+		gap: 0.35rem;
+	}
+
+	.action-status {
+		margin: 0;
+		font-size: 0.88rem;
+		color: var(--muted-foreground);
 	}
 </style>

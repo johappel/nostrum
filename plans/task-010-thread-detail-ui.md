@@ -34,4 +34,31 @@ Implement a state-of-the-art thread detail experience with clear hierarchy for r
 3. `pnpm test` and `pnpm check` pass.
 
 ## Status
-Planned
+Done
+
+## Result
+1. Redesigned thread detail experience:
+   - `src/lib/components/ThreadDetailView.svelte`
+   - clear root-post hero card + replies list (chronological list, not grid)
+   - maintained post-focus highlighting for `post_id`
+2. Added reusable action bar component:
+   - `src/lib/components/thread/ThreadActionBar.svelte`
+   - supports reaction/vote + report actions with per-target status chips
+3. Added deterministic per-target write-state view model:
+   - `src/lib/routes/threadDetailView.ts`
+   - timeline building, focus validation, pending/confirmed/failed target-state mapping
+   - failed write extraction for retry UI
+4. Added retry path for failed writes directly in thread detail:
+   - retries call `retryPendingWrite` from write-flow service
+   - retry outcome updates status and toast feedback
+5. Added thread-detail-specific unit tests:
+   - `tests/thread-detail.view-model.test.ts`
+   - verifies focus stability, pending/reaction/report status mapping, and failed retry visibility
+
+## Acceptance Criteria Check
+1. Thread detail keeps high readability under activity.
+   - Pass: root/reply hierarchy and list-first layout implemented.
+2. Action outcomes are visible without page reload.
+   - Pass: action status text + status chips + toast feedback + retry buttons.
+3. `pnpm test` and `pnpm check` pass.
+   - Pass: both commands successful.
