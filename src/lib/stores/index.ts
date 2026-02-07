@@ -1,4 +1,5 @@
 export { createCommunityStore } from './community';
+export { createForumHubStore } from './forumHub';
 export { createPermissionsStore } from './permissions';
 export { createSyncStateStore } from './syncState';
 export { createThreadDetailStore } from './threadDetail';
