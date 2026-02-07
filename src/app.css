@@ -266,10 +266,14 @@ a {
   width: min(1400px, 100%);
   margin: 0 auto;
   display: grid;
-  grid-template-columns: minmax(220px, 250px) minmax(0, 1fr) minmax(240px, 280px);
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
   padding: 1rem;
   align-items: start;
+}
+
+.shell-layout-forum-desktop {
+  grid-template-columns: var(--shell-left-width, 0px) minmax(0, 1fr) var(--shell-right-width, 0px);
 }
 
 .shell-sidebar {
@@ -280,6 +284,66 @@ a {
   border-radius: var(--radius);
   padding: 0.85rem;
   box-shadow: var(--shadow-xs);
+  transition: width 180ms ease, padding 180ms ease;
+  overflow: visible;
+}
+
+.shell-sidebar-collapsed {
+  padding: 0.55rem 0.3rem;
+}
+
+.shell-sidebar-collapsed .shell-mini-links,
+.shell-sidebar-collapsed .shell-mini-status {
+  justify-items: center;
+}
+
+.shell-panel-toggle {
+  position: absolute;
+  top: 0.78rem;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--card) 88%, var(--muted));
+  color: var(--muted-foreground);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 120ms ease;
+}
+
+.shell-panel-toggle:hover {
+  border-color: var(--ring);
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--accent) 30%, transparent);
+}
+
+.shell-panel-toggle:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.shell-panel-toggle-left {
+  right: -0.72rem;
+}
+
+.shell-panel-toggle-right {
+  left: -0.72rem;
+}
+
+.shell-sidebar-collapsed .shell-panel-toggle {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.shell-sidebar-collapsed .shell-panel-toggle-left {
+  right: -0.58rem;
+}
+
+.shell-sidebar-collapsed .shell-panel-toggle-right {
+  left: -0.58rem;
 }
 
 .shell-panel-head h2 {
@@ -319,6 +383,59 @@ a {
   margin-top: 0.85rem;
   display: inline-flex;
   gap: 0.35rem;
+}
+
+.shell-mini-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.38rem;
+}
+
+.shell-mini-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.95rem;
+  height: 1.95rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--muted) 65%, transparent);
+}
+
+.shell-mini-link:hover {
+  background: color-mix(in oklab, var(--accent) 23%, transparent);
+}
+
+.shell-mini-status {
+  margin-top: 0.65rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.shell-mini-stat {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.95rem;
+  height: 1.45rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.shell-mini-stat-pending {
+  color: color-mix(in oklab, var(--chart-2) 80%, black);
+  border-color: color-mix(in oklab, var(--chart-2) 45%, transparent);
+  background: color-mix(in oklab, var(--chart-2) 16%, transparent);
+}
+
+.shell-mini-stat-failed {
+  color: color-mix(in oklab, var(--destructive) 75%, black);
+  border-color: color-mix(in oklab, var(--destructive) 45%, transparent);
+  background: color-mix(in oklab, var(--destructive) 11%, transparent);
 }
 
 .shell-stats-list {
@@ -534,6 +651,17 @@ a {
   color: color-mix(in oklab, var(--destructive) 75%, black);
   border-color: color-mix(in oklab, var(--destructive) 45%, transparent);
   background: color-mix(in oklab, var(--destructive) 10%, transparent);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }
 
 .ui-sonner-toast {

@@ -6,8 +6,10 @@
 		House,
 		LayoutList,
 		MessageSquare,
-		PanelLeft,
-		PanelRight,
+		PanelLeftClose,
+		PanelLeftOpen,
+		PanelRightClose,
+		PanelRightOpen,
 		RefreshCw,
 		Send,
 		Shield,
@@ -52,7 +54,7 @@
 		}
 
 		return {
-			isForumRoute: Boolean(parts[1]),
+			isForumRoute: true,
 			communityId: parts[1] ?? null,
 			threadId: parts[2] ?? null,
 			postId: parts[3] ?? null
@@ -74,12 +76,19 @@
 	let communityStore = $state(createCommunityStore(''));
 
 	const iconSize = 16;
+	const compactIconSize = 17;
 	const pendingCount = $derived($pendingWritesStore.filter((row) => row.status === 'pending').length);
 	const failedCount = $derived($pendingWritesStore.filter((row) => row.status === 'failed').length);
 	const relayCount = $derived($syncStateStore.relays.length);
 	const hasRelaySync = $derived(relayCount > 0);
 	const lastSyncLabel = $derived(
 		$syncStateStore.lastSyncAt ? new Date($syncStateStore.lastSyncAt).toLocaleString() : 'n/a'
+	);
+	const shellLeftWidth = $derived(
+		forumContext.isForumRoute && viewport === 'desktop' ? (panels.leftOpen ? '250px' : '56px') : '0px'
+	);
+	const shellRightWidth = $derived(
+		forumContext.isForumRoute && viewport === 'desktop' ? (panels.rightOpen ? '280px' : '56px') : '0px'
 	);
 
 	$effect(() => {
@@ -182,13 +191,73 @@
 	</div>
 {/snippet}
 
+{#snippet leftSidebarCollapsedContent()}
+	<nav aria-label="Forum quick links">
+		<ul class="shell-mini-links">
+			<li>
+				<a href="/forums" class="shell-mini-link" title="Alle Communities">
+					<House size={compactIconSize} />
+					<span class="sr-only">Alle Communities</span>
+				</a>
+			</li>
+			{#if forumContext.communityId}
+				<li>
+					<a
+						href={`/forums/${forumContext.communityId}`}
+						class="shell-mini-link"
+						title="Thread Feed"
+					>
+						<LayoutList size={compactIconSize} />
+						<span class="sr-only">Thread Feed</span>
+					</a>
+				</li>
+			{/if}
+			{#if forumContext.communityId && forumContext.threadId}
+				<li>
+					<a
+						href={`/forums/${forumContext.communityId}/${forumContext.threadId}`}
+						class="shell-mini-link"
+						title="Aktueller Thread"
+					>
+						<MessageSquare size={compactIconSize} />
+						<span class="sr-only">Aktueller Thread</span>
+					</a>
+				</li>
+			{/if}
+		</ul>
+	</nav>
+
+	<div class="shell-mini-status">
+		<span class="shell-mini-stat shell-mini-stat-pending" title={`pending ${pendingCount}`}>
+			{pendingCount}
+		</span>
+		<span class="shell-mini-stat shell-mini-stat-failed" title={`failed ${failedCount}`}>
+			{failedCount}
+		</span>
+	</div>
+{/snippet}
+
 {#snippet rightSidebarContent()}
 	<div class="shell-panel-head">
 		<h2>Community Kontext</h2>
 		<p>Mitglieder, Sync und Route-Meta</p>
 	</div>
 
-	{#if $communityStore}
+	{#if !forumContext.communityId}
+		<p class="shell-muted">Hub-Ansicht: Community auswaehlen, um Member- und Thread-Kontext zu laden.</p>
+		<ul class="shell-stats-list">
+			<li>
+				<RefreshCw size={iconSize} />
+				<span>Relays</span>
+				<strong>{relayCount}</strong>
+			</li>
+			<li>
+				<Clock3 size={iconSize} />
+				<span>Last Sync</span>
+				<strong>{lastSyncLabel}</strong>
+			</li>
+		</ul>
+	{:else if $communityStore}
 		<ul class="shell-stats-list">
 			<li>
 				<Users size={iconSize} />
@@ -223,18 +292,48 @@
 	</div>
 {/snippet}
 
+{#snippet rightSidebarCollapsedContent()}
+	<ul class="shell-mini-links">
+		<li>
+			<span class="shell-mini-link" title={`General Members ${$communityStore?.generalMemberCount ?? 0}`}>
+				<Users size={compactIconSize} />
+				<span class="sr-only">General Members</span>
+			</span>
+		</li>
+		<li>
+			<span class="shell-mini-link" title={`Moderators ${$communityStore?.moderatorCount ?? 0}`}>
+				<Shield size={compactIconSize} />
+				<span class="sr-only">Moderators</span>
+			</span>
+		</li>
+		<li>
+			<span class="shell-mini-link" title={`Relays ${relayCount}`}>
+				<RefreshCw size={compactIconSize} />
+				<span class="sr-only">Relays</span>
+			</span>
+		</li>
+		<li>
+			<span class="shell-mini-link" title={`Last Sync ${lastSyncLabel}`}>
+				<Clock3 size={compactIconSize} />
+				<span class="sr-only">Last Sync</span>
+			</span>
+		</li>
+	</ul>
+{/snippet}
+
 <div class="app-frame">
 	<header class="app-topbar">
 		<div class="app-topbar-cluster">
-			<button
-				type="button"
-				class="ui-button"
-				aria-label="Toggle navigation sidebar"
-				onclick={() => togglePanel('left')}
-				disabled={!forumContext.isForumRoute}
-			>
-				<PanelLeft size={iconSize} />
-			</button>
+			{#if forumContext.isForumRoute && viewport !== 'desktop'}
+				<button
+					type="button"
+					class="ui-button"
+					aria-label="Toggle navigation sidebar drawer"
+					onclick={() => togglePanel('left')}
+				>
+					<PanelLeftOpen size={iconSize} />
+				</button>
+			{/if}
 			<a class="app-brand" href="/">
 				<span class="app-brand-mark" aria-hidden="true"></span>
 				<span>Nostrum</span>
@@ -273,22 +372,49 @@
 
 			<ThemeToggle />
 
-			<button
-				type="button"
-				class="ui-button"
-				aria-label="Toggle context sidebar"
-				onclick={() => togglePanel('right')}
-				disabled={!forumContext.isForumRoute}
-			>
-				<PanelRight size={iconSize} />
-			</button>
+			{#if forumContext.isForumRoute && viewport !== 'desktop'}
+				<button
+					type="button"
+					class="ui-button"
+					aria-label="Toggle context sidebar drawer"
+					onclick={() => togglePanel('right')}
+				>
+					<PanelRightOpen size={iconSize} />
+				</button>
+			{/if}
 		</div>
 	</header>
 
-	<div class="shell-layout">
-		{#if forumContext.isForumRoute && panels.leftOpen && viewport === 'desktop'}
-			<aside class="shell-sidebar shell-sidebar-left" aria-label="Forum navigation panel">
-				{@render leftSidebarContent()}
+	<div
+		class={`shell-layout ${forumContext.isForumRoute && viewport === 'desktop' ? 'shell-layout-forum-desktop' : ''}`}
+		style={`--shell-left-width: ${shellLeftWidth}; --shell-right-width: ${shellRightWidth};`}
+	>
+		{#if forumContext.isForumRoute && viewport === 'desktop'}
+			<aside
+				id="shell-left-panel"
+				class={`shell-sidebar shell-sidebar-left ${panels.leftOpen ? '' : 'shell-sidebar-collapsed'}`}
+				aria-label="Forum navigation panel"
+			>
+				<button
+					type="button"
+					class="shell-panel-toggle shell-panel-toggle-left"
+					aria-label={panels.leftOpen ? 'Collapse navigation panel' : 'Expand navigation panel'}
+					aria-controls="shell-left-panel"
+					aria-expanded={panels.leftOpen}
+					onclick={() => togglePanel('left')}
+				>
+					{#if panels.leftOpen}
+						<PanelLeftClose size={iconSize} />
+					{:else}
+						<PanelLeftOpen size={iconSize} />
+					{/if}
+				</button>
+
+				{#if panels.leftOpen}
+					{@render leftSidebarContent()}
+				{:else}
+					{@render leftSidebarCollapsedContent()}
+				{/if}
 			</aside>
 		{/if}
 
@@ -296,9 +422,32 @@
 			{@render children()}
 		</main>
 
-		{#if forumContext.isForumRoute && panels.rightOpen && viewport === 'desktop'}
-			<aside class="shell-sidebar shell-sidebar-right" aria-label="Forum context panel">
-				{@render rightSidebarContent()}
+		{#if forumContext.isForumRoute && viewport === 'desktop'}
+			<aside
+				id="shell-right-panel"
+				class={`shell-sidebar shell-sidebar-right ${panels.rightOpen ? '' : 'shell-sidebar-collapsed'}`}
+				aria-label="Forum context panel"
+			>
+				<button
+					type="button"
+					class="shell-panel-toggle shell-panel-toggle-right"
+					aria-label={panels.rightOpen ? 'Collapse context panel' : 'Expand context panel'}
+					aria-controls="shell-right-panel"
+					aria-expanded={panels.rightOpen}
+					onclick={() => togglePanel('right')}
+				>
+					{#if panels.rightOpen}
+						<PanelRightClose size={iconSize} />
+					{:else}
+						<PanelRightOpen size={iconSize} />
+					{/if}
+				</button>
+
+				{#if panels.rightOpen}
+					{@render rightSidebarContent()}
+				{:else}
+					{@render rightSidebarCollapsedContent()}
+				{/if}
 			</aside>
 		{/if}
 	</div>
