@@ -181,6 +181,21 @@ export async function syncCommunity(options: SyncOptions): Promise<SyncResult> {
 					if (newRows.length > 0) {
 						await db.events.bulkAdd(newRows);
 					}
+					if (deduped.length > 0) {
+						const dedupedIds = deduped.map((event) => event.id);
+						const pendingRows = await db.pendingWrites.where('eventId').anyOf(dedupedIds).toArray();
+						if (pendingRows.length > 0) {
+							const now = Date.now();
+							await db.pendingWrites.bulkPut(
+								pendingRows.map((row) => ({
+									...row,
+									status: 'confirmed',
+									errorMessage: undefined,
+									updatedAt: now
+								}))
+							);
+						}
+					}
 
 					const threadEvents = await db.events
 						.where('[community+kind+createdAt]')

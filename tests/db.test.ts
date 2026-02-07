@@ -11,6 +11,7 @@ describe('Dexie foundation', () => {
 			'events',
 			'labels',
 			'lists',
+			'pendingWrites',
 			'reactions',
 			'sections',
 			'syncCursor',
@@ -30,7 +31,8 @@ describe('Dexie foundation', () => {
 			threadHeads: 1,
 			reactions: 2,
 			labels: 0,
-			syncCursor: 2
+			syncCursor: 2,
+			pendingWrites: 0
 		});
 	});
 
@@ -45,4 +47,3 @@ describe('Dexie foundation', () => {
 		expect(second).toEqual(first);
 	});
 });
-

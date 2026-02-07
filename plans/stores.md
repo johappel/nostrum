@@ -81,6 +81,31 @@ Kernidee:
 - Bei Votes zaehlt pro `(targetId, author)` nur neueste Reaktion.
 - Moderationslabels (`kind:1985`) werden beim Rendern als Filter angewendet.
 
+## Write-Flow Contract (Optimistic + Reconcile)
+- Modul: `src/lib/actions/writeFlow.ts`
+- Inputs:
+  - Thread: `kind:11` mit Tags `h=<community>`, `t=forum:<slug>`, optional `title`
+  - Reaction/Vote: `kind:7` mit Tags `h=<community>`, `e=<targetId>`
+  - Report: `kind:1985` mit Tags `h=<community>`, `e=<targetId>`, `t=mod:report`, optional `reason`
+- Permission Gate (vor Sign):
+  - Thread: `canPost`
+  - Reaction/Vote: `canReact`
+  - Report: `canModerate`
+- Lifecycle:
+  1. Permission pruefen.
+  2. Event signieren.
+  3. Optimistisch in lokale Projektion schreiben (`events`/`threadHeads`, `reactions`, `labels`).
+  4. `pendingWrites`-Eintrag mit `status=pending` anlegen.
+  5. Publish auf Relays versuchen.
+  6. Ergebnis auf `pendingWrites.status` reconciliieren (`confirmed` oder `failed`), `attemptCount` inkrementieren.
+- Retry Contract:
+  - `retryPendingWrite()` nutzt das bereits gespeicherte signierte Event aus `pendingWrites.signedEvent`.
+  - Kein Re-Signing beim Retry, daher deterministisches Event-`id` und keine Duplikate.
+- Sync Reconcile:
+  - `syncCommunity()` markiert `pendingWrites` auf `confirmed`, wenn dieselbe `eventId` aus Relay-Sync ankommt.
+- UI-Status:
+  - Statusindikatoren lesen aus `pendingWrites` und zeigen `pending | confirmed | failed`.
+
 ## MVP-Empfehlung
 1. Erst `events`, `lists`, `thread_heads`, `sync_cursor` bauen.
 2. Dann `threadListStore` + `permissionsStore`.

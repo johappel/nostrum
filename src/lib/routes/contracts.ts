@@ -80,6 +80,8 @@ const defaultDeps: RouteStoreDeps = {
 	createPermissionsStore
 };
 
+export const DEFAULT_ROUTE_USER_PUBKEY = 'npub_demo_user_1';
+
 export function createForumRouteStores(
 	forumId: string,
 	deps: RouteStoreDeps = defaultDeps
@@ -110,7 +112,7 @@ export function createThreadRouteStores(
 		forumId,
 		threadId,
 		threadStore: deps.createThreadDetailStore(forumId, threadId),
-		permissionsStore: deps.createPermissionsStore('npub_demo_user_1', forumId)
+		permissionsStore: deps.createPermissionsStore(DEFAULT_ROUTE_USER_PUBKEY, forumId)
 	};
 }
 

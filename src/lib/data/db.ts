@@ -67,6 +67,25 @@ export interface SyncCursorRow {
 	updatedAt: number;
 }
 
+export type PendingWriteStatus = 'pending' | 'confirmed' | 'failed';
+export type PendingWriteAction = 'thread' | 'reaction' | 'report';
+
+export interface PendingWriteRow {
+	id?: number;
+	eventId: string;
+	community: string;
+	kind: number;
+	action: PendingWriteAction;
+	targetId: string;
+	author: string;
+	status: PendingWriteStatus;
+	attemptCount: number;
+	signedEvent: string;
+	errorMessage?: string;
+	createdAt: number;
+	updatedAt: number;
+}
+
 class NostrumDb extends Dexie {
 	events!: Table<NostrEventRow, string>;
 	sections!: Table<SectionRow, number>;
@@ -75,6 +94,7 @@ class NostrumDb extends Dexie {
 	reactions!: Table<ReactionRow, string>;
 	labels!: Table<LabelRow, string>;
 	syncCursor!: Table<SyncCursorRow, number>;
+	pendingWrites!: Table<PendingWriteRow, number>;
 
 	constructor() {
 		super('nostrum-db');
@@ -95,6 +115,17 @@ class NostrumDb extends Dexie {
 			reactions: 'id, eventId, community, targetId, author, value, createdAt, [targetId+author], [community+targetId]',
 			labels: 'id, eventId, community, targetId, label, reason, author, createdAt, [targetId+label+createdAt], [community+targetId]',
 			syncCursor: '++id, relay, community, stream, cursor, updatedAt, [relay+community+stream]'
+		});
+		this.version(3).stores({
+			events: 'id, kind, pubkey, createdAt, community, forumSlug, rootId, [community+kind+createdAt], [community+rootId+createdAt]',
+			sections: '++id, community, section, [community+section]',
+			lists: '++id, community, dTag, [community+dTag], updatedAt',
+			threadHeads: 'rootId, community, forumSlug, lastActivityAt, [community+forumSlug+lastActivityAt]',
+			reactions: 'id, eventId, community, targetId, author, value, createdAt, [targetId+author], [community+targetId]',
+			labels: 'id, eventId, community, targetId, label, reason, author, createdAt, [targetId+label+createdAt], [community+targetId]',
+			syncCursor: '++id, relay, community, stream, cursor, updatedAt, [relay+community+stream]',
+			pendingWrites:
+				'++id, eventId, community, kind, action, status, targetId, author, updatedAt, [community+status+updatedAt], [community+targetId], [community+eventId]'
 		});
 	}
 }

@@ -21,7 +21,7 @@ export async function tableCounts() {
 		threadHeads: await db.threadHeads.count(),
 		reactions: await db.reactions.count(),
 		labels: await db.labels.count(),
-		syncCursor: await db.syncCursor.count()
+		syncCursor: await db.syncCursor.count(),
+		pendingWrites: await db.pendingWrites.count()
 	};
 }
-

@@ -36,5 +36,33 @@ Implement create/sign/publish flow with optimistic UI and reconciliation.
 3. No duplicate final events after retries.
 
 ## Status
-Planned
+Done
 
+## Result
+1. Added write action module:
+   - `src/lib/actions/writeFlow.ts`
+   - `src/lib/actions/index.ts`
+2. Added pending write state model in Dexie:
+   - `src/lib/data/db.ts` migration v3 with `pendingWrites`
+   - statuses: `pending`, `confirmed`, `failed`
+   - deterministic retry payload via `pendingWrites.signedEvent`
+3. Added UI write-status indicators:
+   - `src/lib/stores/pendingWrites.ts`
+   - `/forums/[id]` shows thread write status and new thread form
+   - `ThreadDetailView` exposes reaction/report actions with status feedback
+4. Added sync reconciliation for pending writes:
+   - `src/lib/sync/service.ts` marks matching `pendingWrites.eventId` as `confirmed` during relay ingest
+5. Added automated tests:
+   - `tests/write-flow.actions.test.ts`
+   - optimistic insertion visible via `threadListStore`
+   - publish success/failure reconciliation
+   - deterministic retry without duplicate final events
+   - permission-deny before signing
+
+## Acceptance Criteria Check
+1. User sees immediate feedback on write actions.
+   - Pass: optimistic insert + status messaging implemented and tested.
+2. Retry behavior is deterministic.
+   - Pass: retry reuses stored signed event and keeps same `eventId`.
+3. No duplicate final events after retries.
+   - Pass: tested with failed first publish then retry success; event count remains stable.
